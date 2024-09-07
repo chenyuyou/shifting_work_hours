@@ -38,16 +38,20 @@ def find_indoor_file(base_path, model, scenario, year):
 
     return None
 
-def find_outdoor_file(base_path, year):
+def find_outdoor_file(base_path, model, scenario, year):
     pattern = f"outdoor_wbgt_day_{year}.nc"
-    full_pattern = os.path.join(base_path, '**', pattern)
-
-    matching_files = glob.glob(full_pattern, recursive=True)
-    if matching_files:
-
-        return matching_files[0]
-
+    full_pattern = os.path.join(base_path, 
+                                "wbgt_outdoor_output", 
+                                model, 
+                                scenario, 
+                                "r1i1p1f1",
+                                pattern)
+    
+    if os.path.exists(full_pattern):
+        return full_pattern
+    
     return None
+
 
 def process_model_scenario_year(base_dir, model, scenario, year):
     try:
@@ -55,7 +59,7 @@ def process_model_scenario_year(base_dir, model, scenario, year):
         if not indoor_file:
             return {'status': 'error', 'message': f"No indoor file found for year {year}"}
         
-        outdoor_file = find_outdoor_file(base_dir, year)
+        outdoor_file = find_outdoor_file(base_dir, model, scenario, year)
         if not outdoor_file:
             return {'status': 'error', 'message': f"No outdoor file found for year {year}"}
         
@@ -215,10 +219,10 @@ def process_all_models(base_dir, output_dir, status_file, population_file, num_t
 
     status_lock = threading.Lock()
     
-#    models = ['EC-Earth3']
-    models = ['EC-Earth3', 'GFDL-ESM4', 'IPSL-CM6A-LR', 'NorESM2-MM']
-#    scenarios = ['SSP126']
-    scenarios = ['SSP126', 'SSP245', 'SSP585']
+    models = ['EC-Earth3']
+#    models = ['EC-Earth3', 'GFDL-ESM4', 'IPSL-CM6A-LR', 'NorESM2-MM']
+    scenarios = ['SSP126']
+#    scenarios = ['SSP126', 'SSP245', 'SSP585']
     task_queue = Queue()
     result_dict = {}
 
@@ -292,7 +296,7 @@ if __name__ == "__main__":
 
     os.makedirs(output_dir, exist_ok=True)
     
-    successful, failed = process_all_models(base_dir, output_dir, status_file, population_file, num_threads=4)
+    successful, failed = process_all_models(base_dir, output_dir, status_file, population_file, num_threads=8)
 
     print(f"\nProcessing completed!")
     print(f"Total files processed: {len(successful) + len(failed)}")
