@@ -1,86 +1,89 @@
 import xarray as xr
-import geopandas as gpd
-import rioxarray
 import numpy as np
-import glob
-import os
+import pandas as pd
+import geopandas as gpd
 import regionmask
+import os
+import glob
+from datetime import datetime
 
-def create_china_mask(data, china_geojson_file):
-    """
-    创建中国的地理掩码。
-    
-    参数:
-    data: xarray.Dataset, 包含经纬度信息的数据集
-    china_geojson_file: str, 中国地理边界文件路径
-    
-    返回:
-    xarray.DataArray: 中国掩码
-    """
-    china_gdf = gpd.read_file(china_geojson_file)
-    china_mask = regionmask.Regions([china_gdf.geometry.iloc[0]])
-    return china_mask.mask(data.lon, data.lat)
+def create_province_masks(data, province_geojson_file):
+    """创建中国各省份的地理掩码。"""
+    province_gdf = gpd.read_file(province_geojson_file)
+    province_masks = {}
+    for idx, row in province_gdf.iterrows():
+        province_region = regionmask.Regions([row.geometry])
+        province_mask = province_region.mask(data.lon, data.lat)
+        province_masks[row['name']] = province_mask
+    return province_masks
 
-def mask_and_save(file_path, china_mask, output_dir):
-    """
-    对数据进行掩膜处理，并保存为 NetCDF 和 GeoTIFF 格式。
-    
-    参数:
-    file_path: str, 输入 NetCDF 文件路径
-    china_mask: xarray.DataArray, 中国掩码
-    output_dir: str, 输出目录路径
-    """
-    # 读取数据
-    data = xr.open_dataset(file_path)
-    
-    # 应用掩码
-    masked_data = data.where(china_mask == 0)
-    
-    # 获取文件名（不包括扩展名）
-    base_name = os.path.splitext(os.path.basename(file_path))[0]
-    
-    # 保存为 NetCDF
-    nc_output_path = os.path.join(output_dir, f"{base_name}_china_masked.nc")
-    masked_data.to_netcdf(nc_output_path)
-    print(f"Saved masked NetCDF to: {nc_output_path}")
-    
-    # 保存为 GeoTIFF
-    for var in masked_data.data_vars:
-        tif_output_path = os.path.join(output_dir, f"{base_name}_{var}_china_masked.tif")
-        
-        # 确保数据有正确的空间维度
-        da = masked_data[var]
-        if 'lon' in da.dims and 'lat' in da.dims:
-            da = da.rename({'lon': 'x', 'lat': 'y'})
-        
-        # 设置空间维度和坐标系
-        da.rio.set_spatial_dims(x_dim="x", y_dim="y", inplace=True)
-        da.rio.write_crs("EPSG:4326", inplace=True)
-        
-        # 保存为 GeoTIFF
-        da.rio.to_raster(tif_output_path)
-        print(f"Saved {var} as GeoTIFF to: {tif_output_path}")
+def find_outdoor_files(base_path, scenario):
+    pattern = os.path.join(base_path, "wbgt_outdoor_output", "*", scenario, "r1i1p1f1", "outdoor_wbgt_day_2100.nc")
+    return glob.glob(pattern)
 
-def main():
-    # 设置文件路径
-    input_dir = "./outdoor_wbgt_output"
-    china_geojson_file = "./model_outputs/cn.json"
-    output_dir = "./china_masked_output"
+def process_scenario(scenario, base_dir, province_masks):
+    files = find_outdoor_files(base_dir, scenario)
+    if not files:
+        print(f"No files found for scenario {scenario}")
+        return None
+
+    all_model_data = []
+    for file in files:
+        ds = xr.open_dataset(file)
+        
+        # 选择6月1日到8月31日的数据
+        summer_data = ds.sel(time=slice('2100-06-01', '2100-08-31'))
+        
+        # 计算夏季平均值
+        summer_mean = summer_data.mean(dim='time')
+        
+        all_model_data.append(summer_mean)
     
-    # 创建输出目录
-    os.makedirs(output_dir, exist_ok=True)
+    # 计算所有模型的平均值
+    scenario_mean = sum(all_model_data) / len(all_model_data)
     
-    # 获取所有 NetCDF 文件
-    nc_files = glob.glob(f"{input_dir}/*.nc")
+    results = {var: {} for var in ['WBGTmax_od', 'WBGTmin_od', 'WBGThalf_od']}
+    for var in results.keys():
+        for province, mask in province_masks.items():
+            masked_data = scenario_mean[var].where(mask == 0)
+            province_mean = masked_data.mean(dim=['lat', 'lon']).values
+            results[var][province] = float(province_mean)
     
-    # 创建中国掩码
-    first_file = xr.open_dataset(nc_files[0])
-    china_mask = create_china_mask(first_file, china_geojson_file)
+    return results
+
+def save_to_excel(all_results, output_dir):
+    output_file = os.path.join(output_dir, 'outdoor_wbgt_2100_summer_average_all_scenarios.xlsx')
     
-    # 处理每个文件
-    for file_path in nc_files:
-        print(f"Processing file: {file_path}")
-        mask_and_save(file_path, china_mask, output_dir)
+    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+        for var in ['WBGTmax_od', 'WBGTmin_od', 'WBGThalf_od']:
+            df = pd.DataFrame({scenario: results[var] for scenario, results in all_results.items()})
+            df.index.name = 'Province'
+            df.to_excel(writer, sheet_name=var)
+    
+    print(f"Results for all scenarios saved to {output_file}")
+
+def process_all_scenarios(base_dir, output_dir, province_geojson_file):
+    scenarios = ['SSP126', 'SSP245', 'SSP585']
+    
+    # 创建省份掩码
+    first_file = glob.glob(os.path.join(base_dir, "wbgt_outdoor_output", "*", "*", "r1i1p1f1", "outdoor_wbgt_day_2100.nc"))[0]
+    first_ds = xr.open_dataset(first_file)
+    province_masks = create_province_masks(first_ds, province_geojson_file)
+
+    all_results = {}
+    for scenario in scenarios:
+        print(f"Processing scenario: {scenario}")
+        scenario_results = process_scenario(scenario, base_dir, province_masks)
+        if scenario_results:
+            all_results[scenario] = scenario_results
+
+    save_to_excel(all_results, output_dir)
 
 if __name__ == "__main__":
-    main()
+    base_dir = "./model_outputs"  # 包含模型输出的目录
+    output_dir = "./outdoor_wbgt_output"
+    province_geojson_file = "./model_outputs/cn_fensheng.json"
+    
+    os.makedirs(output_dir, exist_ok=True)
+    
+    process_all_scenarios(base_dir, output_dir, province_geojson_file)
