@@ -39,3 +39,4 @@
 R语言计算包计算的温度不收敛，所以没采纳。输入文件为步骤4的输出，即china_output。代码计算结果输出为wbgt_outdoor_output。强调的是，代码必须用cuda加速，否则计算非常非常消耗时间。
 7. 计算网格中不同强度人口强度下，劳动生产率损失。实际上就是3种人口强度下，计算了劳动生产率损失，然后乘以人口，得到网格中的劳动生产率损失。需要建立一个文件夹model_outputs，将室内和室外wbgt计算结果wbgt_outdoor_output和wbgt_indoor_output文件夹以及其中文件移动到model_outputs文件夹中。同时找到索要计算区域的人口的nc数据。先将人口数据的坐标与之前计算得到的wbgt数据求交集，然后求积，输出到eighted_productivity_loss_outpu文件夹中。Labor_Productivity_Loss_pop_mini_cuda.py也通过cuda加速。
 8. 计算不同劳动强度，所有模型中，不同情景的平均、最大、最小人均劳动力损失。运行labor-productivity-analysis-logical-review.py即可。先用中国地图的geojson数据以及中国分省份geojson数据mask步骤7得到的数据，得到中国以及各省份数据加总，除以人口中国加总和分省份加总。得到人均损失。再计算所有模型，不同情景的平均、最大和最小损失。这里还有个步骤就是考虑了工作时间调解前后这些数据，以及差值。结果保存到labor_productivity_results文件夹中，以csv格式保存。geojson数据阿里云数据可视化平台获取https://datav.aliyun.com/portal/school/atlas/area_selector#&lat=33.54139466898275&lng=104.2822265625&zoom=4
+9. 添加室外wbgt的一个计算，文件时outdoor-wbgt-processing.py。计算2100年，中国6-8月份的所有模型下的平均wbgt温度。
