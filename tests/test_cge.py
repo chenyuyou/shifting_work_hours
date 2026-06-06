@@ -157,3 +157,42 @@ class TestResults:
         csv_path = tmp_path / 'results.csv'
         ra.to_csv(csv_path)
         assert csv_path.exists()
+
+
+class TestConfig:
+    """Tests for CGEConfig and config-based workflow."""
+
+    def test_config_default(self):
+        """Default config should create without error."""
+        from shifting_work_hours.cge.parameters import CGEConfig
+        config = CGEConfig.default()
+        assert config.name == 'default_2sector'
+        assert config.num_sectors == 2
+
+    def test_config_json_roundtrip(self, tmp_path):
+        """Write config to JSON and reload."""
+        from shifting_work_hours.cge.parameters import CGEConfig
+        config = CGEConfig(name='test', total_gdp=200.0)
+        json_path = tmp_path / 'test_config.json'
+        config.to_json(json_path)
+        config2 = CGEConfig.from_json(json_path)
+        assert config2.name == 'test'
+        assert config2.total_gdp == 200.0
+
+    def test_build_from_config(self):
+        """build_from_config should work with default config."""
+        from shifting_work_hours.cge.parameters import CGEConfig
+        from shifting_work_hours.cge.sam import build_from_config
+        config = CGEConfig.default()
+        sam = build_from_config(config)
+        assert sam.n == 8
+        sam.validate()
+
+    def test_config_file(self):
+        """Predefined config file should load correctly."""
+        from shifting_work_hours.cge.parameters import CGEConfig
+        config_path = Path(__file__).parent.parent / 'src' / 'shifting_work_hours' / 'cge' / 'configs' / 'china_lancet_2025.json'
+        if config_path.exists():
+            config = CGEConfig.from_json(config_path)
+            assert config.name == 'china_lancet_2025'
+            assert 'AGR' in config.shock_mapping.loss_multiplier

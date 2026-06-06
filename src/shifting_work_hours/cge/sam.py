@@ -150,139 +150,144 @@ class SAM:
 
 
 # ──────────────────────────────────────────────────────
-#  Demo SAM builder (Phase 1 – 2-sector China)
+#  SAM construction helpers
 # ──────────────────────────────────────────────────────
 
-def build_demo_sam(total_gdp: float = 100.0) -> SAM:
-    """Build a balanced 2-sector SAM for China (Phase 1 demo).
+def build_from_config(config) -> SAM:
+    """Build or load a SAM from a CGEConfig.
+
+    If ``config.sam_file`` is set, load from CSV.
+    Otherwise, build a demo SAM using config parameters.
+    """
+    from shifting_work_hours.cge.parameters import CGEConfig
+
+    if config.sam_file:
+        return SAM.from_csv(config.sam_file)
+    return build_demo_sam(config=config)
+
+
+def build_demo_sam(total_gdp: float = 100.0, config=None) -> SAM:
+    """Build a balanced 2-sector SAM.
+
+    If *config* is provided, uses its parameters (GDP shares,
+    factor shares, demand shares).  Otherwise uses sensible defaults.
 
     The SAM is constructed so that every account's column sum equals
-    its row sum.  Intermediate flows between sectors are chosen
-    consistently with the IO identity:
-        output = intermediate_purchases + value_added
+    its row sum (balanced by construction).
 
-    Accounts: AGR IND LAB CAP HOU GOV INV ROW
-
-    Parameters
-    ----------
-    total_gdp : float
-        Total GDP (value added).  Default 100.
+    Accounts: S1 S2 LAB CAP HOU GOV INV ROW
+    (S1, S2 are the first two aggregate sectors from config)
     """
-    gdp = total_gdp
+    if config is not None:
+        gdp = config.total_gdp
+        sectors = config.sector_mapping.aggregate_sectors[:2]
+        lab_shares = config.lab_share_by_sector
+        hou_share = config.hou_consumption_share
+        gov_share = config.gov_consumption_share
+        inv_share = config.investment_share
+        tax_rate = config.gov_tax_rate
+    else:
+        gdp = total_gdp
+        sectors = ['AGR', 'IND']
+        lab_shares = {'AGR': 0.85, 'IND': 0.45}
+        hou_share = 0.60
+        gov_share = 0.15
+        inv_share = 0.42
+        tax_rate = 0.10
+
+    s1, s2 = sectors[0], sectors[1]
 
     # ── Value added by sector ──
-    agr_va = gdp * 0.07    # 7.0
-    ind_va = gdp * 0.93    # 93.0
+    va_shares = [0.07, 0.93] if len(sectors) == 2 else [1.0 / len(sectors)] * len(sectors)
+    va = {s1: gdp * va_shares[0], s2: gdp * va_shares[1]}
 
-    # ── Factor incomes within value added ──
-    # Labour: AGR 85%, IND 45% of VA
-    lab_agr = agr_va * 0.85   # 5.95
-    cap_agr = agr_va * 0.15   # 1.05
-    lab_ind = ind_va * 0.45   # 41.85
-    cap_ind = ind_va * 0.55   # 51.15
-    total_lab = lab_agr + lab_ind   # 47.80
-    total_cap = cap_agr + cap_ind   # 52.20
+    # ── Factor incomes ──
+    lab = {s: va[s] * lab_shares.get(s, 0.5) for s in sectors}
+    cap = {s: va[s] * (1.0 - lab_shares.get(s, 0.5)) for s in sectors}
+    total_lab = sum(lab.values())
+    total_cap = sum(cap.values())
 
-    # ── Government tax on capital income (10%) ──
-    gov_tax = total_cap * 0.10   # 5.22
-    hou_cap = total_cap - gov_tax  # 46.98
+    # ── Government ──
+    gov_tax = total_cap * tax_rate
+    hou_cap_total = total_cap - gov_tax
 
-    # ── Final demand (expenditure side) ──
-    hou_total = gdp * 0.60   # 60.0
-    hou_agr = hou_total * 0.35  # 21.0
-    hou_ind = hou_total * 0.65  # 39.0
+    # ── Final demand ──
+    hou_total = gdp * hou_share
+    gov_total = gdp * gov_share
+    inv_total = gdp * inv_share
+    net_exp = gdp - hou_total - gov_total - inv_total
 
-    gov_total = gdp * 0.15   # 15.0
-    gov_agr = gov_total * 0.20  # 3.0
-    gov_ind = gov_total * 0.80  # 12.0
+    # Split final demand across sectors (35/65 for 2-sector default)
+    hou_split = [0.35, 0.65] if len(sectors) == 2 else [1.0 / len(sectors)] * len(sectors)
+    gov_split = [0.20, 0.80] if len(sectors) == 2 else [1.0 / len(sectors)] * len(sectors)
+    inv_split = [0.10, 0.90] if len(sectors) == 2 else [1.0 / len(sectors)] * len(sectors)
+    nx_split = [0.30, 0.70] if len(sectors) == 2 else [1.0 / len(sectors)] * len(sectors)
 
-    inv_total = gdp * 0.42   # 42.0
-    inv_agr = inv_total * 0.10  # 4.2
-    inv_ind = inv_total * 0.90  # 37.8
+    hou = {s: hou_total * h for s, h in zip(sectors, hou_split)}
+    gov = {s: gov_total * g for s, g in zip(sectors, gov_split)}
+    inv = {s: inv_total * i for s, i in zip(sectors, inv_split)}
+    nx = {s: net_exp * n for s, n in zip(sectors, nx_split)}
 
-    net_exp = gdp - hou_total - gov_total - inv_total  # -17.0
-    nx_agr = net_exp * 0.30   # -5.1
-    nx_ind = net_exp * 0.70   # -11.9
+    # ── Intermediate flows (balance condition) ──
+    # For each sector: column(costs) = row(revenue)
+    # column = intermediate_purchases + lab + cap
+    # row = intermediate_sales + hou + gov + inv + nx
+    # We solve: inter_s1_from_s2 - inter_s2_from_s1 = final_s1 - va_s1
 
-    # ── Intermediate flows ──
-    # The key balance condition for each sector:
-    #   column sum (costs) = row sum (revenue)
-    #   intermediate_purchases + VA = intermediate_sales + final_demand
-    #
-    # We choose intermediate flows so that:
-    #   S[IND, AGR] - S[AGR, IND] = final_demand_AGR - VA_AGR
-    #   (IND sells more to AGR than AGR sells to IN, because
-    #    AGR's final demand exceeds its VA by the difference)
+    final_s1 = hou[s1] + gov[s1] + inv[s1] + nx[s1]
+    diff = final_s1 - va[s1]
 
-    final_agr = hou_agr + gov_agr + inv_agr + nx_agr  # 23.1
-    final_ind = hou_ind + gov_ind + inv_ind + nx_ind  # 76.9
+    if diff >= 0:
+        inter_s1_from_s2 = abs(diff) + 1.0
+        inter_s2_from_s1 = 1.0
+    else:
+        inter_s1_from_s2 = 1.0
+        inter_s2_from_s1 = abs(diff) + 1.0
 
-    # AG's final demand = 23.1, AG's VA = 7.0
-    # So AG intermediate purchases - AG intermediate sales = 23.1 - 7.0 = 16.1
-    # Choose: AGR buys 20 from IND, AGR sells 3.9 to IND
-    # Then: 20 - 3.9 = 16.1 ✓
-    inter_agr_from_ind = 20.0    # AGR buys from IND
-    inter_ind_from_agr = 3.9     # IND buys from AGR
-
-    # Verify AG balance:
-    ag_col = inter_agr_from_ind + lab_agr + cap_agr   # 20 + 5.95 + 1.05 = 27.0
-    ag_row = inter_ind_from_agr + hou_agr + gov_agr + inv_agr + nx_agr  # 3.9 + 23.1 = 27.0 ✓
-
-    # Verify IN balance:
-    in_col = inter_ind_from_agr + lab_ind + cap_ind   # 3.9 + 41.85 + 51.15 = 96.9
-    in_row = inter_agr_from_ind + hou_ind + gov_ind + inv_ind + nx_ind  # 20 + 76.9 = 96.9 ✓
-
-    # Total output
-    ag_output = ag_col  # 27.0
-    ind_output = in_col  # 96.9
-
-    # ── Build the 8×8 SAM matrix ──
-    #    AGR    IND    LAB    CAP    HOU    GOV    INV    ROW
-    accounts = ['AGR', 'IND', 'LAB', 'CAP', 'HOU', 'GOV', 'INV', 'ROW']
+    # ── Build SAM matrix ──
+    accounts = sectors + ['LAB', 'CAP', 'HOU', 'GOV', 'INV', 'ROW']
     n = len(accounts)
     S = np.zeros((n, n))
+    idx = {a: i for i, a in enumerate(accounts)}
 
-    # AGR column (payments FROM AGR):
-    S[1, 0] = inter_agr_from_ind   # AGR→IND intermediate
-    S[2, 0] = lab_agr              # AGR→LAB wages
-    S[3, 0] = cap_agr              # AGR→CAP rents
+    # Sector columns (payments FROM sector)
+    S[idx[s2], idx[s1]] = inter_s1_from_s2   # s1 buys from s2
+    S[idx['LAB'], idx[s1]] = lab[s1]
+    S[idx['CAP'], idx[s1]] = cap[s1]
 
-    # IND column (payments FROM IND):
-    S[0, 1] = inter_ind_from_agr   # IND→AGR intermediate
-    S[2, 1] = lab_ind              # IND→LAB wages
-    S[3, 1] = cap_ind              # IND→CAP rents
+    S[idx[s1], idx[s2]] = inter_s2_from_s1   # s2 buys from s1
+    S[idx['LAB'], idx[s2]] = lab[s2]
+    S[idx['CAP'], idx[s2]] = cap[s2]
 
-    # LAB column: labour income → household
-    S[4, 2] = total_lab
+    # LAB → HOU
+    S[idx['HOU'], idx['LAB']] = total_lab
 
-    # CAP column: capital income → household + government tax
-    S[4, 3] = hou_cap
-    S[5, 3] = gov_tax
+    # CAP → HOU + GOV
+    S[idx['HOU'], idx['CAP']] = hou_cap_total
+    S[idx['GOV'], idx['CAP']] = gov_tax
 
-    # HOU column: household consumption → sectors + savings → INV
-    S[0, 4] = hou_agr
-    S[1, 4] = hou_ind
-    hou_savings = (total_lab + hou_cap) - hou_total  # income - consumption
-    S[6, 4] = hou_savings  # household savings → investment
+    # HOU → sectors + savings
+    for s in sectors:
+        S[idx[s], idx['HOU']] = hou[s]
+    hou_savings = (total_lab + hou_cap_total) - hou_total
+    S[idx['INV'], idx['HOU']] = hou_savings
 
-    # GOV column: government consumption → sectors + savings → INV
-    S[0, 5] = gov_agr
-    S[1, 5] = gov_ind
-    gov_savings = gov_tax - gov_total  # revenue - expenditure
-    S[6, 5] = gov_savings  # government savings → investment
+    # GOV → sectors + savings
+    for s in sectors:
+        S[idx[s], idx['GOV']] = gov[s]
+    gov_savings = gov_tax - gov_total
+    S[idx['INV'], idx['GOV']] = gov_savings
 
-    # INV column: investment demand → sectors
-    S[0, 6] = inv_agr
-    S[1, 6] = inv_ind
+    # INV → sectors
+    for s in sectors:
+        S[idx[s], idx['INV']] = inv[s]
 
-    # ROW column: net exports → sectors + capital inflow → INV
-    S[0, 7] = nx_agr
-    S[1, 7] = nx_ind
-    row_capital_inflow = -(nx_agr + nx_ind)  # foreign savings = -NX
-    S[6, 7] = row_capital_inflow  # foreign savings → investment
+    # ROW → sectors + capital inflow
+    for s in sectors:
+        S[idx[s], idx['ROW']] = nx[s]
+    S[idx['INV'], idx['ROW']] = -(sum(nx.values()))
 
     sam = SAM(accounts, S)
     sam.validate(tol=1e-4)
-    logger.info("Demo SAM built (GDP=%.1f, AG_out=%.1f, IN_out=%.1f)",
-                gdp, ag_output, ind_output)
+    logger.info("Demo SAM built: %d sectors, GDP=%.1f", len(sectors), gdp)
     return sam

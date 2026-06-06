@@ -1,14 +1,10 @@
 """Labour-productivity shock interface.
 
-Translates the pipeline's per-grid, per-intensity productivity-loss
-NetCDF files into per-sector CGE labour-efficiency multipliers.
+Translates per-grid, per-intensity productivity-loss data into
+per-sector CGE labour-efficiency multipliers.
 
-Mapping logic:
-    low / medium intensity  →  indoor WBGT  →  affects all sectors
-    high intensity          →  outdoor WBGT →  agriculture + construction
-
-In Phase 1 (2-sector demo) we average across the whole country and
-treat the loss as a uniform shock to the LAB factor in both sectors.
+The mapping from national-level loss to sector-specific loss is
+configured via ``ShockMapping`` in the CGE config.
 """
 
 from __future__ import annotations
@@ -24,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class ProductivityShock:
-    """Load productivity loss from pipeline output and compute sector shocks.
+    """Load productivity loss and compute sector-specific shocks.
 
     Parameters
     ----------
