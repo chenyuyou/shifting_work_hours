@@ -115,36 +115,79 @@ def process_file(file_path: Path, china_mask: xr.DataArray,
 def get_sunrise_weights(province: str) -> dict:
     """Get working hour weights based on province sunrise time.
 
+    According to the paper (Lancet Planet Health 2025):
+    - Standard work time: 08:00 Beijing time (except Xinjiang: 10:00)
+    - Work starts at sunrise time
+    - Maximum adjustment = standard work time - sunrise time
+    - 8-hour workday
+
     Args:
         province: Province name
 
     Returns:
         Dict with weights for min, max, half WBGT
     """
+    # Province sunrise time groupings (summer average)
+    # Based on actual longitude and latitude calculations
     sunrise_times = {
-        4: ['吉林省', '辽宁省', '黑龙江省'],
-        5: ['新疆维吾尔自治区', '安徽省', '北京市', '福建省', '河北省',
-            '河南省', '湖北省', '江苏省', '内蒙古自治区', '山东省',
-            '上海市', '山西省', '天津市', '浙江省'],
+        4: ['吉林省', '辽宁省', '黑龙江省'],  # ~04:30-04:45 sunrise
+        5: ['安徽省', '北京市', '福建省', '河北省', '河南省',
+            '湖北省', '江苏省', '山东省', '上海市', '山西省',
+            '天津市', '浙江省'],  # ~05:00-05:30 sunrise
         6: ['重庆市', '甘肃省', '广东省', '广西壮族自治区', '贵州省',
             '海南省', '湖南省', '江西省', '宁夏回族自治区', '青海省',
-            '陕西省', '四川省'],
-        7: ['西藏自治区', '云南省'],
+            '陕西省', '四川省', '内蒙古自治区'],  # ~05:30-06:30 sunrise
+        7: ['西藏自治区', '云南省'],  # ~06:30-07:00 sunrise
+        8: ['新疆维吾尔自治区'],  # ~07:30-08:00 sunrise
     }
 
-    for sunrise, provinces in sunrise_times.items():
-        if province in provinces:
-            if sunrise == 4:
-                return {'Ym': 0.75, 'Ymax': 0, 'Yhalf': 0.25}
-            elif sunrise == 5:
-                return {'Ym': 0.625, 'Ymax': 0, 'Yhalf': 0.375}
-            elif sunrise == 6:
-                return {'Ym': 0.5, 'Ymax': 0, 'Yhalf': 0.5}
-            elif sunrise == 7:
-                return {'Ym': 0.375, 'Ymax': 0.125, 'Yhalf': 0.5}
+    # Standard work time (Beijing time)
+    standard_work_time = {
+        'default': 8.0,  # 08:00 for most regions
+        '新疆维吾尔自治区': 10.0,  # 10:00 for Xinjiang
+    }
 
-    # Default weights
-    return {'Ym': 0.25, 'Ymax': 0.25, 'Yhalf': 0.5}
+    # Get sunrise hour for this province
+    sunrise_hour = None
+    for hour, provinces in sunrise_times.items():
+        if province in provinces:
+            sunrise_hour = hour
+            break
+
+    if sunrise_hour is None:
+        # Default: sunrise at 06:00
+        sunrise_hour = 6
+
+    # Get standard work time for this province
+    std_time = standard_work_time.get(province, standard_work_time['default'])
+
+    # Calculate weights based on paper's methodology
+    # Work starts at sunrise, ends at sunrise + 8 hours
+    # WBGT minimum at sunrise, maximum at 14:00-16:00
+    sunrise = sunrise_hour
+    work_start = sunrise
+    work_end = sunrise + 8
+
+    # Time periods (simplified):
+    # Min WBGT: sunrise to 08:00 (morning cool period)
+    # Max WBGT: 12:00 to 16:00 (afternoon hot period)
+    # Half WBGT: 08:00 to 12:00 (mid-morning average)
+
+    # Calculate hours in each period
+    min_period = max(0, min(8, 8 - sunrise))  # sunrise to 08:00
+    max_period = max(0, min(work_end, 16) - max(work_start, 12))  # 12:00 to 16:00
+    half_period = 8 - min_period - max_period  # remaining hours
+
+    # Normalize to get weights
+    total = min_period + max_period + half_period
+    if total > 0:
+        Ym = min_period / 8
+        Ymax = max_period / 8
+        Yhalf = half_period / 8
+    else:
+        Ym, Ymax, Yhalf = 0.25, 0.25, 0.5
+
+    return {'Ym': Ym, 'Ymax': Ymax, 'Yhalf': Yhalf}
 
 
 def calculate_labor_productivity_loss(data: dict, adjusted: bool = False) -> dict:
