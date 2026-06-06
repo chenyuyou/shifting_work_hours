@@ -44,6 +44,9 @@ def calculate_productivity_factor(wbgt: cp.ndarray, intensity: str) -> cp.ndarra
     Returns:
         Productivity factor (0-1)
     """
+    # Clamp WBGT to non-negative values to avoid NaN from negative bases
+    wbgt = cp.maximum(wbgt, 0)
+
     params = PRODUCTIVITY_PARAMS[intensity]
     threshold = params['threshold']
     exponent = params['exponent']
@@ -204,14 +207,15 @@ def process_year(model: str, scenario: str, year: int,
         indoor_ds.close()
         outdoor_ds.close()
 
-        # Free GPU memory
-        cp.get_default_memory_pool().free_all_blocks()
-
         return {'status': 'success', 'data': combined_loss}
 
     except Exception as e:
         logger.error(f"Error processing {model}/{scenario}/{year}: {e}")
         return {'status': 'error', 'error': str(e)}
+
+    finally:
+        # Always free GPU memory
+        cp.get_default_memory_pool().free_all_blocks()
 
 
 def process_loss_with_population(loss_data: xr.Dataset,
@@ -296,7 +300,7 @@ def process_loss_with_population(loss_data: xr.Dataset,
     weighted_ds = xr.Dataset(
         {var: (('time', 'lat', 'lon'), weighted_results[var])
          for var in loss_data.data_vars},
-        coords={'time': common_times, 'lat': loss_data.lat, 'lon': loss_data.lon}
+        coords={'time': loss_times, 'lat': loss_data.lat, 'lon': loss_data.lon}
     )
 
     # Add population data

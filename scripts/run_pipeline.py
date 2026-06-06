@@ -135,6 +135,7 @@ def cmd_outdoor_summary(args):
 
 def cmd_all(args):
     """Run all stages in sequence."""
+    import copy
     logger.info("Running full pipeline...")
 
     # Stage 3: Extract
@@ -148,8 +149,9 @@ def cmd_all(args):
 
     # Stage 6: Productivity loss (run for each scenario)
     for scenario in ['SSP126', 'SSP245', 'SSP585']:
-        args.scenario = scenario
-        cmd_productivity(args)
+        scenario_args = copy.copy(args)
+        scenario_args.scenario = scenario
+        cmd_productivity(scenario_args)
 
     # Stage 7: Analysis
     cmd_analysis(args)

@@ -18,15 +18,14 @@ def read_variable(file_path: Path, variable: str,
         convert_kelvin: If True, convert Kelvin to Celsius
 
     Returns:
-        Tuple of (dataset, data_array)
-        NOTE: Caller is responsible for closing the dataset!
+        Tuple of (dataset_copy, data_array)
+        The dataset is a copy that can be used after the file is closed.
     """
-    # Open dataset and keep it open - caller must close!
-    ds = xr.open_dataset(file_path)
-    data = ds[variable].values.copy()
-    if convert_kelvin:
-        data = data - KELVIN_OFFSET
-    return ds, data
+    with xr.open_dataset(file_path) as ds:
+        data = ds[variable].values.copy()
+        if convert_kelvin:
+            data = data - KELVIN_OFFSET
+        return ds.copy(), data
 
 
 def read_variables(file_paths: dict[str, Path], variables: list[str],

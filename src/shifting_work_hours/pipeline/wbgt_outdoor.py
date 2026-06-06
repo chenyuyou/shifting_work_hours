@@ -60,8 +60,8 @@ def preprocess_data(ds: xr.Dataset) -> xr.Dataset:
 
         # Validate humidity range (0-100%)
         if var == 'hurs':
-            ds[var] = xr.where((ds[var] < 0) | (ds[var] > 100), np.nan, ds[var])
-            ds[var] = xr.where(ds[var] > 100, 100, ds[var])
+            # Clamp to 100 first, then replace negatives with NaN
+            ds[var] = xr.where(ds[var] < 0, np.nan, xr.where(ds[var] > 100, 100, ds[var]))
 
     return ds
 
@@ -80,6 +80,7 @@ def process_year(model: str, scenario: str, year: int,
     Returns:
         Dict with 'status', 'year', and optionally 'output' or 'error'
     """
+    datasets = {}
     try:
         # Get input directory
         model_scenario_dir = get_model_scenario_dir(input_dir, model, scenario)
@@ -88,7 +89,6 @@ def process_year(model: str, scenario: str, year: int,
         variables = ['tas', 'tasmax', 'hurs', 'sfcWind', 'rsds']
 
         # Find and open all input files
-        datasets = {}
         for var in variables:
             file = find_nc_file(model_scenario_dir / var, var, year)
             if not file:
@@ -141,15 +141,16 @@ def process_year(model: str, scenario: str, year: int,
         out_dir = get_model_scenario_dir(output_dir, model, scenario)
         save_dataset(wbgt_ds, out_dir, f"outdoor_wbgt_day_{year}.nc")
 
-        # Close input datasets
-        for ds in datasets.values():
-            ds.close()
-
         return {'status': 'success', 'year': year, 'output': str(out_dir)}
 
     except Exception as e:
         logger.error(f"Error processing {model}/{scenario}/{year}: {e}")
         return {'status': 'error', 'year': year, 'error': str(e)}
+
+    finally:
+        # Always close datasets
+        for ds in datasets.values():
+            ds.close()
 
 
 def run(input_dir: Path, output_dir: Path, status_file: Path,

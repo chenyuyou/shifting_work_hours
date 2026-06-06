@@ -147,20 +147,15 @@ def process_year(model: str, scenario: str, year: int,
         out_dir = get_model_scenario_dir(output_dir, model, scenario)
         save_dataset(ds, out_dir, f"wbgt_indoor_day_{year}.nc")
 
-        # Close datasets
-        tas_ds.close()
-        tasmax_ds.close()
-        hurs_ds.close()
-
-        # Free GPU memory
-        del tas_gpu, tasmax_gpu, hurs_gpu
-        cp.get_default_memory_pool().free_all_blocks()
-
         return {'status': 'success', 'year': year, 'output': str(out_dir)}
 
     except Exception as e:
         logger.error(f"Error processing {model}/{scenario}/{year}: {e}")
         return {'status': 'error', 'year': year, 'error': str(e)}
+
+    finally:
+        # Always free GPU memory
+        cp.get_default_memory_pool().free_all_blocks()
 
 
 def run(input_dir: Path, output_dir: Path, status_file: Path,

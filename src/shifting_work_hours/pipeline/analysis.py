@@ -82,33 +82,32 @@ def process_file(file_path: Path, china_mask: xr.DataArray,
     Returns:
         Dict with processed data for China and provinces
     """
-    data = xr.open_dataset(file_path)
+    with xr.open_dataset(file_path) as data:
+        # Extract model and scenario from filename
+        filename = file_path.stem
+        parts = filename.split('_')
+        model = parts[-2]
+        scenario = parts[-1]
 
-    # Extract model and scenario from filename
-    filename = file_path.stem
-    parts = filename.split('_')
-    model = parts[-2]
-    scenario = parts[-1]
-
-    results = {
-        'model': model,
-        'scenario': scenario,
-        'China': {},
-        'Provinces': {},
-    }
-
-    # Process China data
-    china_data, china_pop = mask_and_aggregate(data, china_mask, data['population'])
-    results['China']['data'] = china_data
-    results['China']['population'] = china_pop
-
-    # Process province data
-    for province, mask in province_masks.items():
-        province_data, province_pop = mask_and_aggregate(data, mask, data['population'])
-        results['Provinces'][province] = {
-            'data': province_data,
-            'population': province_pop,
+        results = {
+            'model': model,
+            'scenario': scenario,
+            'China': {},
+            'Provinces': {},
         }
+
+        # Process China data
+        china_data, china_pop = mask_and_aggregate(data, china_mask, data['population'])
+        results['China']['data'] = china_data
+        results['China']['population'] = china_pop
+
+        # Process province data
+        for province, mask in province_masks.items():
+            province_data, province_pop = mask_and_aggregate(data, mask, data['population'])
+            results['Provinces'][province] = {
+                'data': province_data,
+                'population': province_pop,
+            }
 
     return results
 
@@ -179,22 +178,33 @@ def calculate_labor_productivity_loss(data: dict, adjusted: bool = False) -> dic
         factors = get_sunrise_weights(province) if adjusted else {'Ym': 0.25, 'Ymax': 0.25, 'Yhalf': 0.5}
         province_loss = calculate_loss(province_data['data'], factors)
 
-        # Per-capita loss
-        results['Provinces'][province] = {
-            intensity: loss / province_data['population']
-            for intensity, loss in province_loss.items()
-        }
+        # Per-capita loss (handle zero population)
+        province_pop = province_data['population']
+        if province_pop > 0:
+            results['Provinces'][province] = {
+                intensity: loss / province_pop
+                for intensity, loss in province_loss.items()
+            }
+        else:
+            results['Provinces'][province] = {
+                intensity: np.nan for intensity in INTENSITIES
+            }
 
         # Accumulate totals
         for intensity in INTENSITIES:
             total_loss[intensity] += province_loss[intensity]
         total_population += province_data['population']
 
-    # Calculate China average
-    results['China'] = {
-        intensity: total_loss[intensity] / total_population
-        for intensity in INTENSITIES
-    }
+    # Calculate China average (handle zero population)
+    if total_population > 0:
+        results['China'] = {
+            intensity: total_loss[intensity] / total_population
+            for intensity in INTENSITIES
+        }
+    else:
+        results['China'] = {
+            intensity: np.nan for intensity in INTENSITIES
+        }
 
     return results
 

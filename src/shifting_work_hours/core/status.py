@@ -21,8 +21,10 @@ class StatusTracker:
         """
         self.status_file = Path(status_file)
         self.lock = threading.Lock()
-        self._ensure_file()
-        self.status = self._load()
+        # Initialize with lock to prevent race conditions
+        with self.lock:
+            self._ensure_file()
+            self.status = self._load()
 
     def _ensure_file(self):
         """Create status file if it doesn't exist."""
@@ -94,5 +96,7 @@ class StatusTracker:
         """Clear all status data."""
         with self.lock:
             self.status = {}
-            # Write directly to avoid deadlock with save()
-            self.status_file.write_text('{}', encoding='utf-8')
+            # Use atomic write to prevent corruption
+            tmp = self.status_file.with_suffix('.tmp')
+            tmp.write_text('{}', encoding='utf-8')
+            tmp.replace(self.status_file)

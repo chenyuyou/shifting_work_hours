@@ -72,6 +72,7 @@ def run(input_dir: Path, output_dir: Path,
 
     # Collect results
     all_results = []
+    province_masks = None
 
     for model in MODELS:
         for scenario in SCENARIOS:
@@ -97,31 +98,28 @@ def run(input_dir: Path, output_dir: Path,
             logger.info(f"Processing {file_path}")
 
             # Read data
-            ds = xr.open_dataset(file_path)
+            with xr.open_dataset(file_path) as ds:
+                # Filter to summer months (June-August)
+                summer_months = [6, 7, 8]
+                ds_summer = ds.sel(time=ds.time.dt.month.isin(summer_months))
 
-            # Filter to summer months (June-August)
-            summer_months = [6, 7, 8]
-            ds_summer = ds.sel(time=ds.time.dt.month.isin(summer_months))
+                # Create province masks (using first file)
+                if province_masks is None:
+                    province_masks = create_province_masks(ds, province_geojson)
 
-            # Create province masks (using first file)
-            if 'province_masks' not in locals():
-                province_masks = create_province_masks(ds, province_geojson)
-
-            # Calculate averages for each province
-            for province, mask in province_masks.items():
-                for var in ds_summer.data_vars:
-                    avg_value = calculate_province_average(ds_summer[var], mask)
-                    all_results.append({
-                        'Model': model,
-                        'Scenario': scenario,
-                        'Province': province,
-                        'Variable': var,
-                        'Average_WBGT': avg_value,
-                        'Year': target_year,
-                        'Season': 'Summer (JJA)',
-                    })
-
-            ds.close()
+                # Calculate averages for each province
+                for province, mask in province_masks.items():
+                    for var in ds_summer.data_vars:
+                        avg_value = calculate_province_average(ds_summer[var], mask)
+                        all_results.append({
+                            'Model': model,
+                            'Scenario': scenario,
+                            'Province': province,
+                            'Variable': var,
+                            'Average_WBGT': avg_value,
+                            'Year': target_year,
+                            'Season': 'Summer (JJA)',
+                        })
 
     # Create DataFrame and save
     if all_results:
