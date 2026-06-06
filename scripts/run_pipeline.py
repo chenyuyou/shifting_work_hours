@@ -34,10 +34,11 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from config.settings import (
     DOWNLOADED_DATA_DIR, CHINA_OUTPUT_DIR, MODEL_OUTPUTS_DIR,
     WBGT_INDOOR_OUTPUT_DIR, WBGT_OUTDOOR_OUTPUT_DIR,
-    PRODUCTIVITY_OUTPUT_DIR, RESULTS_DIR,
+    PRODUCTIVITY_OUTPUT_DIR, RESULTS_DIR, OUTDOOR_WBGT_OUTPUT_DIR,
     EXTRACT_STATUS_FILE, WBGT_INDOOR_STATUS_FILE,
     WBGT_OUTDOOR_STATUS_FILE, PRODUCTIVITY_STATUS_FILE,
-    POPULATION_FILES, NUM_THREADS, LOG_LEVEL, LOG_FORMAT
+    NASA_DATA_INFO_FILE, POPULATION_FILES,
+    NUM_THREADS, DOWNLOAD_WORKERS, LOG_LEVEL, LOG_FORMAT
 )
 
 # Configure logging
@@ -111,6 +112,27 @@ def cmd_analysis(args):
     )
 
 
+def cmd_download(args):
+    """Stage 2: Download climate data."""
+    from src.shifting_work_hours.pipeline import downloader
+    logger.info("Starting download...")
+    downloader.run(
+        csv_file=NASA_DATA_INFO_FILE,
+        output_dir=DOWNLOADED_DATA_DIR,
+        num_workers=args.workers,
+    )
+
+
+def cmd_outdoor_summary(args):
+    """Stage 8: Calculate outdoor WBGT summary."""
+    from src.shifting_work_hours.pipeline import outdoor_summary
+    logger.info("Starting outdoor WBGT summary...")
+    outdoor_summary.run(
+        input_dir=WBGT_OUTDOOR_OUTPUT_DIR,
+        output_dir=OUTDOOR_WBGT_OUTPUT_DIR,
+    )
+
+
 def cmd_all(args):
     """Run all stages in sequence."""
     logger.info("Running full pipeline...")
@@ -142,6 +164,15 @@ def main():
         epilog=__doc__,
     )
     subparsers = parser.add_subparsers(dest='command', help='Pipeline stage')
+
+    # Download
+    download_parser = subparsers.add_parser(
+        'download', help='Stage 2: Download climate data'
+    )
+    download_parser.add_argument(
+        '--workers', type=int, default=DOWNLOAD_WORKERS,
+        help=f'Number of download workers (default: {DOWNLOAD_WORKERS})'
+    )
 
     # Extract
     extract_parser = subparsers.add_parser(
@@ -189,6 +220,11 @@ def main():
         'analysis', help='Stage 7: Run final analysis'
     )
 
+    # Outdoor Summary
+    outdoor_summary_parser = subparsers.add_parser(
+        'outdoor-summary', help='Stage 8: Outdoor WBGT summary'
+    )
+
     # All
     all_parser = subparsers.add_parser(
         'all', help='Run all stages in sequence'
@@ -206,11 +242,13 @@ def main():
 
     # Dispatch to command handler
     commands = {
+        'download': cmd_download,
         'extract': cmd_extract,
         'wbgt-indoor': cmd_wbgt_indoor,
         'wbgt-outdoor': cmd_wbgt_outdoor,
         'productivity': cmd_productivity,
         'analysis': cmd_analysis,
+        'outdoor-summary': cmd_outdoor_summary,
         'all': cmd_all,
     }
 
