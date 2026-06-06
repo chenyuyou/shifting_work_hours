@@ -256,10 +256,11 @@ def process_loss_with_population(loss_data: xr.Dataset,
     # Align time coordinates
     # Use nearest neighbor matching for temporal alignment
     # This handles cases where timestamps don't exactly match
+    loss_times = loss_data.time.values
+
     if len(pop_ds.time) > 0 and len(loss_data.time) > 0:
         # Find nearest population time for each loss data time
         pop_times = pop_ds.time.values
-        loss_times = loss_data.time.values
 
         # Use searchsorted to find nearest matches
         indices = np.searchsorted(pop_times, loss_times)

@@ -98,7 +98,8 @@ def calc_solar_parameters(year, month, day, lat, lon, solar):
     
     toasolar = SOLAR_CONST * cp.maximum(0., cos_zenith)
     toasolar = cp.where(cos_zenith < CZA_MIN, 0., toasolar)
-    normsolar = cp.minimum(solar / toasolar, NORMSOLAR_MAX)
+    # Avoid division by zero
+    normsolar = cp.where(toasolar > 0, cp.minimum(solar / toasolar, NORMSOLAR_MAX), 0)
     solar = normsolar * toasolar
     fdir = cp.where(normsolar > 0,
                     cp.exp(3. - 1.34 * normsolar - 1.65 / normsolar),
@@ -198,10 +199,12 @@ def Tglobe(Tair, rh, Pair, speed, solar, fdir, cza):
     for i in range(MAX_ITER):
         Tref = 0.5 * (Tglobe_prev + Tair)
         h = h_sphere_in_air(D_GLOBE, Tref, Pair, speed)
-        Tglobe_new = ((0.5 * (emis_atm(Tair, rh) * Tair**4 + EMIS_SFC * Tsfc**4) -
+        # Protect against negative values before fourth root
+        Tglobe_expr = (0.5 * (emis_atm(Tair, rh) * Tair**4 + EMIS_SFC * Tsfc**4) -
                        h / (STEFANB * EMIS_GLOBE) * (Tglobe_prev - Tair) +
-                       solar / (2. * STEFANB * EMIS_GLOBE) * (1. - ALB_GLOBE) * 
-                       (fdir * (1. / (2. * cza) - 1.) + 1. + ALB_SFC)) ** 0.25)
+                       solar / (2. * STEFANB * EMIS_GLOBE) * (1. - ALB_GLOBE) *
+                       (fdir * (1. / (2. * cp.maximum(cza, CZA_MIN)) - 1.) + 1. + ALB_SFC))
+        Tglobe_new = cp.maximum(Tglobe_expr, 0) ** 0.25
         
         if cp.abs(Tglobe_new - Tglobe_prev).max() < CONVERGENCE:
             return cp.maximum(Tglobe_new - 273.15, -100)  # 限制最小值为 -100°C

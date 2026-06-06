@@ -18,14 +18,16 @@ def read_variable(file_path: Path, variable: str,
         convert_kelvin: If True, convert Kelvin to Celsius
 
     Returns:
-        Tuple of (dataset_copy, data_array)
-        The dataset is a copy that can be used after the file is closed.
+        Tuple of (dataset_loaded, data_array)
+        The dataset is fully loaded into memory and safe to use after file close.
     """
     with xr.open_dataset(file_path) as ds:
         data = ds[variable].values.copy()
         if convert_kelvin:
             data = data - KELVIN_OFFSET
-        return ds.copy(), data
+        # Load all data into memory before closing the file
+        ds_loaded = ds.load()
+        return ds_loaded, data
 
 
 def read_variables(file_paths: dict[str, Path], variables: list[str],
@@ -92,13 +94,13 @@ def save_dataset(ds: xr.Dataset, output_dir: Path, filename: str) -> Path:
 
 
 def read_dataset(file_path: Path) -> xr.Dataset:
-    """Read a NetCDF file with context manager.
+    """Read a NetCDF file, fully loading into memory.
 
     Args:
         file_path: Path to NetCDF file
 
     Returns:
-        xr.Dataset (copy that can be used after context closes)
+        xr.Dataset fully loaded into memory
     """
     with xr.open_dataset(file_path) as ds:
-        return ds.copy()
+        return ds.load()

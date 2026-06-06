@@ -55,14 +55,17 @@ def mask_and_aggregate(data: xr.Dataset, mask: xr.DataArray,
 
     Args:
         data: Dataset with productivity loss data
-        mask: Geographic mask (0 = inside region)
+        mask: Geographic mask (region index = inside, NaN = outside)
         population: Population data
 
     Returns:
         Tuple of (aggregated_data, total_population)
     """
-    masked_data = data.where(mask == 0)
-    masked_population = population.where(mask == 0)
+    # Use notnull() to select points inside the region
+    # regionmask returns region index (int) for inside, NaN for outside
+    inside_region = mask.notnull()
+    masked_data = data.where(inside_region)
+    masked_population = population.where(inside_region)
 
     total_data = masked_data.sum(dim=['lat', 'lon'])
     total_population = masked_population.sum(dim=['lat', 'lon'])
@@ -82,12 +85,20 @@ def process_file(file_path: Path, china_mask: xr.DataArray,
     Returns:
         Dict with processed data for China and provinces
     """
+    import re
+
     with xr.open_dataset(file_path) as data:
         # Extract model and scenario from filename
+        # File format: weighted_productivity_loss_{model}_{scenario}.nc
         filename = file_path.stem
-        parts = filename.split('_')
-        model = parts[-2]
-        scenario = parts[-1]
+        match = re.match(r'weighted_productivity_loss_(.+)_(.+)', filename)
+        if match:
+            model, scenario = match.groups()
+        else:
+            # Fallback: split by underscore
+            parts = filename.split('_')
+            model = parts[-2]
+            scenario = parts[-1]
 
         results = {
             'model': model,

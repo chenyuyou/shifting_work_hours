@@ -151,6 +151,8 @@ def process_year(model: str, scenario: str, year: int,
         # Always close datasets
         for ds in datasets.values():
             ds.close()
+        # Always free GPU memory
+        cp.get_default_memory_pool().free_all_blocks()
 
 
 def run(input_dir: Path, output_dir: Path, status_file: Path,
