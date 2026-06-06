@@ -209,18 +209,23 @@ def process_loss_with_population(loss_data: xr.Dataset,
     if 'StdTime' in pop_ds.dims:
         pop_ds = pop_ds.rename({'StdTime': 'time'})
 
+    # Interpolate population data to match climate data resolution
+    # This is better than np.intersect1d() which causes data loss
+    logger.info(f"Interpolating population data to match climate data resolution")
+    logger.info(f"  Climate data: {len(loss_data.lat)} lat x {len(loss_data.lon)} lon")
+    logger.info(f"  Population data: {len(pop_ds.lat)} lat x {len(pop_ds.lon)} lon")
+
+    # Interpolate population to climate data coordinates
+    pop_ds = pop_ds.interp(
+        lat=loss_data.lat,
+        lon=loss_data.lon,
+        method='linear'  # Linear interpolation
+    )
+
     # Align time coordinates
     common_times = np.intersect1d(loss_data.time, pop_ds.time)
     loss_data = loss_data.sel(time=common_times)
     pop_ds = pop_ds.sel(time=common_times)
-
-    # Find intersection of spatial coordinates
-    common_lats = np.intersect1d(loss_data.lat, pop_ds.lat)
-    common_lons = np.intersect1d(loss_data.lon, pop_ds.lon)
-
-    # Subset to common coordinates
-    loss_data = loss_data.sel(lat=common_lats, lon=common_lons)
-    pop_ds = pop_ds.sel(lat=common_lats, lon=common_lons)
 
     # Extract population data
     population = pop_ds['pop'].values
@@ -251,7 +256,7 @@ def process_loss_with_population(loss_data: xr.Dataset,
     weighted_ds = xr.Dataset(
         {var: (('time', 'lat', 'lon'), weighted_results[var])
          for var in loss_data.data_vars},
-        coords={'time': common_times, 'lat': common_lats, 'lon': common_lons}
+        coords={'time': common_times, 'lat': loss_data.lat, 'lon': loss_data.lon}
     )
 
     # Add population data
