@@ -1,3 +1,19 @@
+"""
+DEPRECATED: This script is deprecated. Use the new modular pipeline instead.
+
+Usage:
+    python scripts/run_pipeline.py download
+
+This file is kept for reference only.
+"""
+
+import warnings
+warnings.warn(
+    "This script is deprecated. Use 'python scripts/run_pipeline.py download' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 import csv
 import os
 import sys

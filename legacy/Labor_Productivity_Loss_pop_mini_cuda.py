@@ -1,3 +1,19 @@
+"""
+DEPRECATED: This script is deprecated. Use the new modular pipeline instead.
+
+Usage:
+    python scripts/run_pipeline.py productivity --scenario SSP245 --threads 4
+
+This file is kept for reference only.
+"""
+
+import warnings
+warnings.warn(
+    "This script is deprecated. Use 'python scripts/run_pipeline.py productivity' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 import cupy as cp
 import xarray as xr
 import numpy as np
@@ -6,7 +22,6 @@ import json
 import threading
 from queue import Queue
 from tqdm import tqdm
-import warnings
 import glob
 import pandas as pd
 

@@ -1,3 +1,19 @@
+"""
+DEPRECATED: This script is deprecated. Use the new modular pipeline instead.
+
+Usage:
+    python scripts/run_pipeline.py wbgt-indoor --threads 4
+
+This file is kept for reference only.
+"""
+
+import warnings
+warnings.warn(
+    "This script is deprecated. Use 'python scripts/run_pipeline.py wbgt-indoor' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 import xarray as xr
 import numpy as np
 import cupy as cp
