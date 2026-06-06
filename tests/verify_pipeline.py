@@ -3,9 +3,6 @@
 import sys
 from pathlib import Path
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from tests.create_test_data import create_all_test_data
 
 
@@ -14,19 +11,19 @@ def verify_imports():
     print("\n1. Verifying imports...")
 
     try:
-        from config import constants, settings
+        from shifting_work_hours.config import constants, settings
         print("   [OK] config module")
 
-        from src.shifting_work_hours.core import status, runner, io
+        from shifting_work_hours.core import status, runner, io
         print("   [OK] core module")
 
         # Pipeline modules that don't require heavy dependencies
-        from src.shifting_work_hours.pipeline import downloader
+        from shifting_work_hours.pipeline import downloader
         print("   [OK] pipeline module (downloader)")
 
         # Pipeline modules that require geopandas (optional)
         try:
-            from src.shifting_work_hours.pipeline import (
+            from shifting_work_hours.pipeline import (
                 extractor, analysis, outdoor_summary
             )
             print("   [OK] pipeline modules (extractor, analysis, outdoor_summary)")
@@ -38,7 +35,7 @@ def verify_imports():
 
         # Pipeline modules that require CuPy (optional)
         try:
-            from src.shifting_work_hours.pipeline import wbgt_indoor, wbgt_outdoor, productivity
+            from shifting_work_hours.pipeline import wbgt_indoor, wbgt_outdoor, productivity
             print("   [OK] pipeline modules (wbgt_indoor, wbgt_outdoor, productivity)")
         except ImportError as e:
             if 'cupy' in str(e).lower():
@@ -46,7 +43,7 @@ def verify_imports():
             else:
                 raise
 
-        from src.shifting_work_hours.utils import file_discovery
+        from shifting_work_hours.utils import file_discovery
         print("   [OK] utils module")
 
         return True
@@ -60,7 +57,7 @@ def verify_config():
     print("\n2. Verifying configuration...")
 
     try:
-        from config.constants import MODELS, SCENARIOS, YEAR_START, YEAR_END
+        from shifting_work_hours.config.constants import MODELS, SCENARIOS, YEAR_START, YEAR_END
 
         assert len(MODELS) == 4
         assert len(SCENARIOS) == 3
@@ -82,7 +79,7 @@ def verify_status_tracker(test_dir: Path):
     print("\n3. Verifying StatusTracker...")
 
     try:
-        from src.shifting_work_hours.core.status import StatusTracker
+        from shifting_work_hours.core.status import StatusTracker
 
         status_file = test_dir / 'test_status.json'
         tracker = StatusTracker(status_file)
@@ -119,8 +116,8 @@ def verify_task_runner(test_dir: Path):
     print("\n4. Verifying TaskRunner...")
 
     try:
-        from src.shifting_work_hours.core.status import StatusTracker
-        from src.shifting_work_hours.core.runner import TaskRunner
+        from shifting_work_hours.core.status import StatusTracker
+        from shifting_work_hours.core.runner import TaskRunner
 
         status_file = test_dir / 'test_status.json'
         tracker = StatusTracker(status_file)
@@ -154,7 +151,7 @@ def verify_file_discovery(test_dir: Path):
     print("\n5. Verifying file discovery...")
 
     try:
-        from src.shifting_work_hours.utils.file_discovery import (
+        from shifting_work_hours.utils.file_discovery import (
             find_matching_file, find_nc_file, get_model_scenario_dir
         )
 
@@ -196,7 +193,7 @@ def verify_netCDF_io(test_dir: Path):
     try:
         import numpy as np
         import xarray as xr
-        from src.shifting_work_hours.core.io import (
+        from shifting_work_hours.core.io import (
             read_variable, create_output_dataset, save_dataset
         )
 

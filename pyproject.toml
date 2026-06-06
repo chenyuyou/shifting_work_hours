@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "shifting-work-hours"
@@ -35,9 +35,12 @@ scrapy = [
     "Scrapy>=2.9.0",
     "itemadapter>=0.7.0",
 ]
+cge = [
+    "pyomo>=6.7.0",
+]
 
 [project.scripts]
-shifting-wh = "scripts.run_pipeline:main"
+shifting-wh = "shifting_work_hours.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

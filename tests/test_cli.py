@@ -5,9 +5,6 @@ from pathlib import Path
 import sys
 import subprocess
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 
 def test_cli_help():
     """Test that CLI help works."""

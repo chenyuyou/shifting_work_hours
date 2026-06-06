@@ -15,7 +15,7 @@ from threading import Thread, Lock
 from queue import Queue
 from tqdm import tqdm
 
-from config.settings import NASA_DATA_INFO_FILE, DOWNLOAD_WORKERS
+from shifting_work_hours.config.settings import NASA_DATA_INFO_FILE, DOWNLOAD_WORKERS
 
 logger = logging.getLogger(__name__)
 

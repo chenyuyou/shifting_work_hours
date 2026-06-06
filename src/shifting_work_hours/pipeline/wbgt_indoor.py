@@ -15,13 +15,13 @@ import cupy as cp
 import logging
 from pathlib import Path
 
-from config.constants import (
+from shifting_work_hours.config.constants import (
     MODELS, SCENARIOS, YEAR_START, YEAR_END, ENSEMBLE_MEMBER, KELVIN_OFFSET
 )
-from src.shifting_work_hours.core.runner import TaskRunner
-from src.shifting_work_hours.core.status import StatusTracker
-from src.shifting_work_hours.core.io import read_variable, create_output_dataset, save_dataset
-from src.shifting_work_hours.utils.file_discovery import find_nc_file, get_model_scenario_dir
+from shifting_work_hours.core.runner import TaskRunner
+from shifting_work_hours.core.status import StatusTracker
+from shifting_work_hours.core.io import read_variable, create_output_dataset, save_dataset
+from shifting_work_hours.utils.file_discovery import find_nc_file, get_model_scenario_dir
 
 logger = logging.getLogger(__name__)
 

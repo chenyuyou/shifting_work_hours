@@ -18,30 +18,37 @@ Created a proper Python package structure:
 
 ```
 shifting_work_hours/
-├── config/                          # NEW: Configuration module
-│   ├── constants.py                 # Domain constants (models, scenarios, etc.)
-│   └── settings.py                  # Path and environment configuration
-├── src/shifting_work_hours/         # NEW: Main package
+├── LICENSE                          # MIT license
+├── CONTRIBUTING.md                  # Contributing guide
+├── README.md
+├── pyproject.toml                   # Package configuration
+├── requirements.txt                 # Dependencies
+├── docs/                            # Documentation
+├── src/shifting_work_hours/         # Main package
+│   ├── cli.py                       # CLI entry point
+│   ├── config/                      # Configuration module
+│   │   ├── constants.py             # Domain constants
+│   │   └── settings.py              # Path and environment configuration
 │   ├── core/                        # Core utilities
-│   │   ├── status.py                # StatusTracker - thread-safe JSON status
-│   │   ├── runner.py                # TaskRunner - parallel task execution
+│   │   ├── status.py                # StatusTracker
+│   │   ├── runner.py                # TaskRunner
 │   │   └── io.py                    # NetCDF I/O helpers
 │   ├── pipeline/                    # Pipeline stages
-│   │   ├── wbgt_indoor.py           # Indoor WBGT calculation
-│   │   ├── wbgt_outdoor.py          # Outdoor WBGT calculation
-│   │   ├── productivity.py          # Productivity loss calculation
-│   │   ├── extractor.py             # Spatial extraction
 │   │   ├── downloader.py            # Data download
+│   │   ├── extractor.py             # Spatial extraction
+│   │   ├── wbgt_indoor.py           # Indoor WBGT
+│   │   ├── wbgt_outdoor.py          # Outdoor WBGT
+│   │   ├── wbgt_liljegren.py        # Liljegren calculation kernel
+│   │   ├── productivity.py          # Productivity loss
 │   │   ├── analysis.py              # Final analysis
 │   │   └── outdoor_summary.py       # Outdoor WBGT summary
 │   └── utils/
 │       └── file_discovery.py        # File discovery utilities
 ├── scripts/
-│   └── run_pipeline.py              # NEW: CLI entry point
-├── tests/
-│   └── test_status_tracker.py       # NEW: Tests
-├── pyproject.toml                   # NEW: Package configuration
-└── requirements.txt                 # NEW: Dependencies
+│   └── run_pipeline.py              # CLI wrapper (compatibility)
+├── tests/                           # Test suite
+├── legacy/                          # Deprecated original scripts
+└── nasa_climate_data/               # Scrapy spider (Stage 1)
 ```
 
 ### 2. Legacy Scripts (Commit: 13644a9)
@@ -114,10 +121,10 @@ Updated README.md with:
 pip install -e .
 
 # Run specific stage
-python scripts/run_pipeline.py wbgt-indoor --threads 4
+shifting-wh wbgt-indoor --threads 4
 
 # Run all stages
-python scripts/run_pipeline.py all --threads 4
+shifting-wh all --threads 4
 ```
 
 ### Environment Variables
@@ -181,10 +188,12 @@ Total: **30 tests passing**
 
 ### New Files (19)
 
-- `config/__init__.py`
-- `config/constants.py`
-- `config/settings.py`
 - `src/shifting_work_hours/__init__.py`
+- `src/shifting_work_hours/__main__.py`
+- `src/shifting_work_hours/cli.py`
+- `src/shifting_work_hours/config/__init__.py`
+- `src/shifting_work_hours/config/constants.py`
+- `src/shifting_work_hours/config/settings.py`
 - `src/shifting_work_hours/core/__init__.py`
 - `src/shifting_work_hours/core/status.py`
 - `src/shifting_work_hours/core/runner.py`
@@ -192,6 +201,7 @@ Total: **30 tests passing**
 - `src/shifting_work_hours/pipeline/__init__.py`
 - `src/shifting_work_hours/pipeline/wbgt_indoor.py`
 - `src/shifting_work_hours/pipeline/wbgt_outdoor.py`
+- `src/shifting_work_hours/pipeline/wbgt_liljegren.py`
 - `src/shifting_work_hours/pipeline/productivity.py`
 - `src/shifting_work_hours/pipeline/extractor.py`
 - `src/shifting_work_hours/pipeline/downloader.py`
@@ -204,6 +214,8 @@ Total: **30 tests passing**
 - `scripts/run_pipeline.py`
 - `pyproject.toml`
 - `requirements.txt`
+- `LICENSE`
+- `CONTRIBUTING.md`
 - `REFACTORING_SUMMARY.md`
 
 ### Modified Files (1)

@@ -2,15 +2,11 @@
 
 import pytest
 from pathlib import Path
-import sys
 import threading
 import time
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src.shifting_work_hours.core.runner import TaskRunner
-from src.shifting_work_hours.core.status import StatusTracker
+from shifting_work_hours.core.runner import TaskRunner
+from shifting_work_hours.core.status import StatusTracker
 
 
 def test_task_runner_processes_tasks(tmp_path):

@@ -12,8 +12,8 @@ import regionmask
 import logging
 from pathlib import Path
 
-from config.constants import MODELS, SCENARIOS
-from config.settings import OUTPUT_ENCODING
+from shifting_work_hours.config.constants import MODELS, SCENARIOS
+from shifting_work_hours.config.settings import OUTPUT_ENCODING
 
 logger = logging.getLogger(__name__)
 

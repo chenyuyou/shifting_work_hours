@@ -7,9 +7,6 @@ from pathlib import Path
 import sys
 import shutil
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 
 @pytest.fixture
 def test_data_dir(tmp_path):
@@ -21,8 +18,8 @@ def test_data_dir(tmp_path):
 
 def test_wbgt_indoor_calculation(test_data_dir):
     """Test indoor WBGT calculation end-to-end."""
-    from src.shifting_work_hours.pipeline.wbgt_indoor import process_year
-    from config.constants import YEAR_START
+    from shifting_work_hours.pipeline.wbgt_indoor import process_year
+    from shifting_work_hours.config.constants import YEAR_START
 
     # Test with one year
     result = process_year(
@@ -51,7 +48,7 @@ def test_wbgt_indoor_calculation(test_data_dir):
 
 def test_productivity_calculation(test_data_dir):
     """Test productivity loss calculation end-to-end."""
-    from src.shifting_work_hours.pipeline.productivity import (
+    from shifting_work_hours.pipeline.productivity import (
         process_year, calculate_productivity_factor
     )
     import cupy as cp

@@ -59,35 +59,43 @@ pip install -e ".[scrapy]"
 
 ## 使用方法
 
-### 新版CLI（推荐）
+### CLI（推荐）
+
+安装后可直接使用 `shifting-wh` 命令：
 
 ```bash
 # 查看所有命令
-python scripts/run_pipeline.py --help
+shifting-wh --help
 
 # Stage 2: 下载气候数据
-python scripts/run_pipeline.py download --workers 5
+shifting-wh download --workers 5
 
 # Stage 3: 裁切数据到中国区域
-python scripts/run_pipeline.py extract --threads 8
+shifting-wh extract --threads 8
 
 # Stage 4: 计算室内WBGT
-python scripts/run_pipeline.py wbgt-indoor --threads 4
+shifting-wh wbgt-indoor --threads 4
 
 # Stage 5: 计算室外WBGT
-python scripts/run_pipeline.py wbgt-outdoor --threads 1
+shifting-wh wbgt-outdoor --threads 1
 
 # Stage 6: 计算生产力损失
-python scripts/run_pipeline.py productivity --scenario SSP245 --threads 4
+shifting-wh productivity --scenario SSP245 --threads 4
 
 # Stage 7: 最终分析
-python scripts/run_pipeline.py analysis
+shifting-wh analysis
 
 # Stage 8: 室外WBGT汇总
-python scripts/run_pipeline.py outdoor-summary
+shifting-wh outdoor-summary
 
 # 运行所有阶段
-python scripts/run_pipeline.py all --threads 4
+shifting-wh all --threads 4
+```
+
+也可以通过 Python 模块方式运行：
+
+```bash
+python -m shifting_work_hours wbgt-indoor --threads 4
 ```
 
 ### 环境变量
@@ -110,24 +118,29 @@ export SHIFTING_WH_LOG_LEVEL=DEBUG
 
 ### 旧版脚本（已废弃）
 
-旧版脚本位于 `legacy/` 目录，运行时会显示废弃警告：
-
-```bash
-# 旧版脚本（不推荐使用）
-python legacy/wbgt_indoor_cuda.py
-python legacy/wbgt_outdoor_modified_c.py
-# ... 等等
-```
+旧版脚本位于 `legacy/` 目录，仅供参考，不推荐使用。
 
 ## 项目结构
 
 ```
 shifting_work_hours/
-├── config/                          # 配置模块
-│   ├── __init__.py
-│   ├── constants.py                 # 领域常量（模型、情景等）
-│   └── settings.py                  # 路径和设置配置
+├── LICENSE                          # MIT 许可证
+├── CONTRIBUTING.md                  # 贡献指南
+├── README.md                        # 本文件
+├── REFACTORING_SUMMARY.md           # 重构说明
+├── pyproject.toml                   # 项目配置和依赖
+├── requirements.txt                 # 依赖列表
+├── china_bounds_file.json           # 中国地理边界
+├── nasa_climate_data_info.csv       # NASA数据文件列表
+├── docs/                            # 文档
+│   └── Lancet Planet Health 2025.pdf
 ├── src/shifting_work_hours/         # 主代码包
+│   ├── __init__.py
+│   ├── __main__.py                  # python -m 支持
+│   ├── cli.py                       # CLI 入口点
+│   ├── config/                      # 配置模块
+│   │   ├── constants.py             # 领域常量（模型、情景等）
+│   │   └── settings.py              # 路径和设置配置
 │   ├── core/                        # 核心工具
 │   │   ├── status.py                # StatusTracker - 状态跟踪
 │   │   ├── runner.py                # TaskRunner - 并行任务执行
@@ -137,20 +150,18 @@ shifting_work_hours/
 │   │   ├── extractor.py             # Stage 3: 空间裁切
 │   │   ├── wbgt_indoor.py           # Stage 4: 室内WBGT
 │   │   ├── wbgt_outdoor.py          # Stage 5: 室外WBGT
+│   │   ├── wbgt_liljegren.py        # Liljegren WBGT 计算核心
 │   │   ├── productivity.py          # Stage 6: 生产力损失
 │   │   ├── analysis.py              # Stage 7: 最终分析
 │   │   └── outdoor_summary.py       # Stage 8: 室外WBGT汇总
 │   └── utils/                       # 工具函数
 │       └── file_discovery.py        # 文件发现工具
-├── scripts/                         # 脚本
-│   └── run_pipeline.py              # CLI入口点
+├── scripts/                         # 开发脚本
+│   └── run_pipeline.py              # CLI 包装器（兼容）
 ├── tests/                           # 测试
-│   └── test_status_tracker.py       # StatusTracker测试
 ├── legacy/                          # 旧版脚本（已废弃）
 ├── nasa_climate_data/               # Scrapy爬虫项目（Stage 1）
-├── pyproject.toml                   # 项目配置和依赖
-├── requirements.txt                 # 依赖列表
-└── README.md                        # 本文件
+└── model_outputs/                   # GeoJSON边界和人口数据
 ```
 
 ## 处理流水线
@@ -171,7 +182,7 @@ scrapy crawl nasa_climate_data_xml
 多线程下载器，支持断点续传：
 
 ```bash
-python scripts/run_pipeline.py download --workers 5
+shifting-wh download --workers 5
 ```
 
 输出: `data/downloaded_data/{model}/{scenario}/r1i1p1f1/{variable}/*.nc`
@@ -181,7 +192,7 @@ python scripts/run_pipeline.py download --workers 5
 将全球数据裁切到中国区域：
 
 ```bash
-python scripts/run_pipeline.py extract --threads 8
+shifting-wh extract --threads 8
 ```
 
 输出: `data/china_output/`
@@ -191,7 +202,7 @@ python scripts/run_pipeline.py extract --threads 8
 使用Stull (2011)公式计算湿球温度：
 
 ```bash
-python scripts/run_pipeline.py wbgt-indoor --threads 4
+shifting-wh wbgt-indoor --threads 4
 ```
 
 输出: `data/wbgt_indoor_output/`
@@ -201,7 +212,7 @@ python scripts/run_pipeline.py wbgt-indoor --threads 4
 使用Liljegren模型计算室外WBGT（需要CUDA加速）：
 
 ```bash
-python scripts/run_pipeline.py wbgt-outdoor --threads 1
+shifting-wh wbgt-outdoor --threads 1
 ```
 
 输出: `data/wbgt_outdoor_output/`
@@ -211,7 +222,7 @@ python scripts/run_pipeline.py wbgt-outdoor --threads 1
 结合人口数据计算加权生产力损失：
 
 ```bash
-python scripts/run_pipeline.py productivity --scenario SSP245 --threads 4
+shifting-wh productivity --scenario SSP245 --threads 4
 ```
 
 输出: `data/weighted_productivity_loss_output/`
@@ -221,7 +232,7 @@ python scripts/run_pipeline.py productivity --scenario SSP245 --threads 4
 地理聚合和统计分析：
 
 ```bash
-python scripts/run_pipeline.py analysis
+shifting-wh analysis
 ```
 
 输出: `data/labor_productivity_results/{scenario}/`
@@ -231,7 +242,7 @@ python scripts/run_pipeline.py analysis
 计算2100年夏季平均室外WBGT：
 
 ```bash
-python scripts/run_pipeline.py outdoor-summary
+shifting-wh outdoor-summary
 ```
 
 输出: `data/outdoor_wbgt_output/`
@@ -264,6 +275,10 @@ ruff check src/ scripts/ tests/
 - Kjellstrom, T., et al. (2018). Heat and human performance. *Annual Review of Public Health*, 39, 97-115.
 - Liljegren, J. C., et al. (2008). Modeling the wet bulb globe temperature using standard meteorological measurements. *Journal of Occupational and Environmental Hygiene*, 5(10), 645-655.
 
+## 贡献
+
+欢迎贡献！请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 了解开发环境搭建和提交规范。
+
 ## 许可证
 
-MIT License
+本项目采用 [MIT 许可证](LICENSE)。

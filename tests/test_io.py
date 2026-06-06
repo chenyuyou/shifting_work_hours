@@ -2,14 +2,10 @@
 
 import pytest
 from pathlib import Path
-import sys
 import numpy as np
 import xarray as xr
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src.shifting_work_hours.core.io import (
+from shifting_work_hours.core.io import (
     read_variable,
     create_output_dataset,
     save_dataset,

@@ -11,8 +11,8 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 
-from config.constants import MODELS, SCENARIOS, VARIABLES, ENSEMBLE_MEMBER
-from config.settings import CHINA_BOUNDS_FILE
+from shifting_work_hours.config.constants import MODELS, SCENARIOS, VARIABLES, ENSEMBLE_MEMBER
+from shifting_work_hours.config.settings import CHINA_BOUNDS_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +95,7 @@ def run(input_dir: Path, output_dir: Path, status_file: Path,
     Returns:
         Dict with 'successful' and 'failed' lists
     """
-    from src.shifting_work_hours.core.status import StatusTracker
+    from shifting_work_hours.core.status import StatusTracker
 
     tracker = StatusTracker(status_file)
     china_bounds = load_china_bounds()

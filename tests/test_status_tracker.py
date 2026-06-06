@@ -2,12 +2,8 @@
 
 import pytest
 from pathlib import Path
-import sys
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src.shifting_work_hours.core.status import StatusTracker
+from shifting_work_hours.core.status import StatusTracker
 
 
 def test_status_tracker_creates_file(tmp_path):

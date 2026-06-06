@@ -19,14 +19,14 @@ import logging
 import warnings
 from pathlib import Path
 
-from config.constants import (
+from shifting_work_hours.config.constants import (
     MODELS, SCENARIOS, YEAR_START, YEAR_END, ENSEMBLE_MEMBER,
     INTENSITIES, PRODUCTIVITY_PARAMS
 )
-from src.shifting_work_hours.core.runner import TaskRunner
-from src.shifting_work_hours.core.status import StatusTracker
-from src.shifting_work_hours.core.io import read_dataset, save_dataset
-from src.shifting_work_hours.utils.file_discovery import find_matching_file, get_model_scenario_dir
+from shifting_work_hours.core.runner import TaskRunner
+from shifting_work_hours.core.status import StatusTracker
+from shifting_work_hours.core.io import read_dataset, save_dataset
+from shifting_work_hours.utils.file_discovery import find_matching_file, get_model_scenario_dir
 
 # Suppress RuntimeWarning for mean of empty slice
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="Mean of empty slice")

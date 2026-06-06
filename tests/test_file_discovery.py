@@ -2,12 +2,8 @@
 
 import pytest
 from pathlib import Path
-import sys
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src.shifting_work_hours.utils.file_discovery import (
+from shifting_work_hours.utils.file_discovery import (
     find_matching_file,
     find_nc_file,
     find_all_nc_files,

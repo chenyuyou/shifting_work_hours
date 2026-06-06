@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 # Base paths
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 DATA_DIR = Path(os.getenv('SHIFTING_WH_DATA_DIR', str(PROJECT_ROOT / 'data')))
 
 # Input directories

@@ -16,19 +16,14 @@ import xarray as xr
 import logging
 from pathlib import Path
 
-from config.constants import (
+from shifting_work_hours.config.constants import (
     MODELS, SCENARIOS, YEAR_START, YEAR_END, ENSEMBLE_MEMBER
 )
-from src.shifting_work_hours.core.runner import TaskRunner
-from src.shifting_work_hours.core.status import StatusTracker
-from src.shifting_work_hours.core.io import save_dataset
-from src.shifting_work_hours.utils.file_discovery import find_nc_file, get_model_scenario_dir
-
-# Import the Liljegren calculation kernel
-# This is kept as a separate module due to its complexity
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from liljegren_cuda_vectorized_c import wbgt_liljegren_vectorized
+from shifting_work_hours.core.runner import TaskRunner
+from shifting_work_hours.core.status import StatusTracker
+from shifting_work_hours.core.io import save_dataset
+from shifting_work_hours.utils.file_discovery import find_nc_file, get_model_scenario_dir
+from shifting_work_hours.pipeline.wbgt_liljegren import wbgt_liljegren_vectorized
 
 logger = logging.getLogger(__name__)
 

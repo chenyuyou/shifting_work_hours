@@ -5,7 +5,7 @@ import numpy as np
 from pathlib import Path
 from typing import Optional
 
-from config.constants import KELVIN_OFFSET
+from shifting_work_hours.config.constants import KELVIN_OFFSET
 
 
 def read_variable(file_path: Path, variable: str,
