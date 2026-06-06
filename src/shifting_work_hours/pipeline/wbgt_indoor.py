@@ -112,7 +112,15 @@ def process_year(model: str, scenario: str, year: int,
         # Read input data
         tas_ds, tas_data = read_variable(tas_file, 'tas', convert_kelvin=True)
         tasmax_ds, tasmax_data = read_variable(tasmax_file, 'tasmax', convert_kelvin=True)
-        _, hurs_data = read_variable(hurs_file, 'hurs')
+        hurs_ds, hurs_data = read_variable(hurs_file, 'hurs')
+
+        # Validate coordinate alignment
+        if not (tas_ds.lat.shape == tasmax_ds.lat.shape == hurs_ds.lat.shape):
+            raise ValueError("Latitude dimensions don't match across input files")
+        if not (tas_ds.lon.shape == tasmax_ds.lon.shape == hurs_ds.lon.shape):
+            raise ValueError("Longitude dimensions don't match across input files")
+        if not (tas_ds.time.shape == tasmax_ds.time.shape == hurs_ds.time.shape):
+            raise ValueError("Time dimensions don't match across input files")
 
         # Transfer to GPU
         tas_gpu = cp.asarray(tas_data)
@@ -138,6 +146,11 @@ def process_year(model: str, scenario: str, year: int,
         # Save
         out_dir = get_model_scenario_dir(output_dir, model, scenario)
         save_dataset(ds, out_dir, f"wbgt_indoor_day_{year}.nc")
+
+        # Close datasets
+        tas_ds.close()
+        tasmax_ds.close()
+        hurs_ds.close()
 
         # Free GPU memory
         del tas_gpu, tasmax_gpu, hurs_gpu

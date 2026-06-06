@@ -63,15 +63,20 @@ def find_indoor_file(base_path: Path, model: str, scenario: str,
     Returns:
         Path to file, or None if not found
     """
-    patterns = [
-        f"indoor_wbgt_day_tas_day_{model}_{scenario}_r1i1p1f1_*_{year}_v1.2.nc",
-        f"indoor_wbgt_day_tas_day_{model}_{scenario}_r1i1p1f1_*_{year}_v1.1.nc",
-        f"indoor_wbgt_day_tas_day_{model}_{scenario}_r1i1p1f1_*_{year}.nc",
-    ]
-    for pattern in patterns:
-        matches = list(base_path.rglob(pattern))
-        if matches:
-            return matches[0]
+    # Match the actual output format: wbgt_indoor_day_{year}.nc
+    file_path = (
+        base_path / 'wbgt_indoor_output' / model / scenario /
+        ENSEMBLE_MEMBER / f"wbgt_indoor_day_{year}.nc"
+    )
+    if file_path.exists():
+        return file_path
+
+    # Fallback: search with glob
+    pattern = f"wbgt_indoor_day_{year}.nc"
+    matches = list(base_path.rglob(pattern))
+    for match in matches:
+        if model in str(match) and scenario in str(match):
+            return match
     return None
 
 
@@ -88,11 +93,21 @@ def find_outdoor_file(base_path: Path, model: str, scenario: str,
     Returns:
         Path to file, or None if not found
     """
+    # Match the actual output format: outdoor_wbgt_day_{year}.nc
     file_path = (
         base_path / 'wbgt_outdoor_output' / model / scenario /
         ENSEMBLE_MEMBER / f"outdoor_wbgt_day_{year}.nc"
     )
-    return file_path if file_path.exists() else None
+    if file_path.exists():
+        return file_path
+
+    # Fallback: search with glob
+    pattern = f"outdoor_wbgt_day_{year}.nc"
+    matches = list(base_path.rglob(pattern))
+    for match in matches:
+        if model in str(match) and scenario in str(match):
+            return match
+    return None
 
 
 def process_year(model: str, scenario: str, year: int,
@@ -121,6 +136,18 @@ def process_year(model: str, scenario: str, year: int,
         # Read datasets
         indoor_ds = read_dataset(indoor_file)
         outdoor_ds = read_dataset(outdoor_file)
+
+        # Validate coordinate alignment between indoor and outdoor
+        if not (indoor_ds.lat.shape == outdoor_ds.lat.shape):
+            raise ValueError(
+                f"Latitude dimensions don't match: indoor={indoor_ds.lat.shape}, "
+                f"outdoor={outdoor_ds.lat.shape}"
+            )
+        if not (indoor_ds.lon.shape == outdoor_ds.lon.shape):
+            raise ValueError(
+                f"Longitude dimensions don't match: indoor={indoor_ds.lon.shape}, "
+                f"outdoor={outdoor_ds.lon.shape}"
+            )
 
         # Calculate productivity loss for each intensity and metric
         losses = {}
@@ -165,7 +192,7 @@ def process_year(model: str, scenario: str, year: int,
             }
         )
 
-        # Add coordinates
+        # Add coordinates (use indoor_ds as reference since both should match)
         time = pd.to_datetime(f"{year}", format="%Y")
         combined_loss = combined_loss.assign_coords(
             time=time,
@@ -223,9 +250,22 @@ def process_loss_with_population(loss_data: xr.Dataset,
     )
 
     # Align time coordinates
-    common_times = np.intersect1d(loss_data.time, pop_ds.time)
-    loss_data = loss_data.sel(time=common_times)
-    pop_ds = pop_ds.sel(time=common_times)
+    # Use nearest neighbor matching for temporal alignment
+    # This handles cases where timestamps don't exactly match
+    if len(pop_ds.time) > 0 and len(loss_data.time) > 0:
+        # Find nearest population time for each loss data time
+        pop_times = pop_ds.time.values
+        loss_times = loss_data.time.values
+
+        # Use searchsorted to find nearest matches
+        indices = np.searchsorted(pop_times, loss_times)
+        indices = np.clip(indices, 0, len(pop_times) - 1)
+
+        # Select matching population data
+        pop_ds = pop_ds.isel(time=indices)
+        pop_ds = pop_ds.assign_coords(time=loss_times)
+    else:
+        logger.warning("No time coordinates found in population or loss data")
 
     # Extract population data
     population = pop_ds['pop'].values

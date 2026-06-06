@@ -83,7 +83,8 @@ def test_productivity_calculation(test_data_dir):
             'lon': lons,
         }
     )
-    indoor_ds.to_netcdf(indoor_dir / f'indoor_wbgt_day_tas_day_{model}_{scenario}_r1i1p1f1_gn_{year}.nc')
+    # Use the correct naming convention: wbgt_indoor_day_{year}.nc
+    indoor_ds.to_netcdf(indoor_dir / f'wbgt_indoor_day_{year}.nc')
 
     # Create outdoor WBGT file
     outdoor_dir = test_data_dir / 'model_outputs' / 'wbgt_outdoor_output' / model / scenario / 'r1i1p1f1'

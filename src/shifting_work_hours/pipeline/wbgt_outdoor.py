@@ -100,7 +100,8 @@ def process_year(model: str, scenario: str, year: int,
             datasets[var] = xr.open_dataset(file)
 
         # Merge all datasets
-        combined_ds = xr.merge(datasets.values())
+        # Use join='override' to avoid silent data loss from inner join
+        combined_ds = xr.merge(datasets.values(), join='override')
 
         # Preprocess the data
         combined_ds = preprocess_data(combined_ds)

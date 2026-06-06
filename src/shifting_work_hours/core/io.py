@@ -10,7 +10,7 @@ from config.constants import KELVIN_OFFSET
 
 def read_variable(file_path: Path, variable: str,
                   convert_kelvin: bool = False) -> tuple:
-    """Read a single variable from NetCDF file with context manager.
+    """Read a single variable from NetCDF file.
 
     Args:
         file_path: Path to NetCDF file
@@ -19,12 +19,14 @@ def read_variable(file_path: Path, variable: str,
 
     Returns:
         Tuple of (dataset, data_array)
+        NOTE: Caller is responsible for closing the dataset!
     """
-    with xr.open_dataset(file_path) as ds:
-        data = ds[variable].values.copy()
-        if convert_kelvin:
-            data = data - KELVIN_OFFSET
-        return ds.copy(), data
+    # Open dataset and keep it open - caller must close!
+    ds = xr.open_dataset(file_path)
+    data = ds[variable].values.copy()
+    if convert_kelvin:
+        data = data - KELVIN_OFFSET
+    return ds, data
 
 
 def read_variables(file_paths: dict[str, Path], variables: list[str],
