@@ -1,42 +1,269 @@
 # shifting_work_hours
 
-1. 获取带下载的文件信息。nasa\_climate\_data是爬虫工具scrapy写的脚本，是用来从nasa下载气候有关数据信息的。运行后得到的nasa\_climate\_data\_info.csv记录了准备下载的具体数据信息。
-2. 下载文件。下载过程涉及两个python代码，分别是climate\_data\_downloader.py和rebuild\_metadata.py。以及一个window下bat脚本auto\_restart.bat。如果设置正确，双击auto\_restart.bat是能够直接下载，该bat脚本会运行climate\_data\_downloader.py进行下载，并且如果下载中断，会自动重新继续下载。主要设置是确定conda的位置。rebuild\_metadata.py脚本的作用是有可能下载中断，重建下载历史信息，确保不会重复下载。
-3. 下载数据的目录结构：
+气候变化对中国劳动生产力影响的研究项目。
 
-    downloaded_data
+## 项目概述
 
-     --EC-Earth3
+本项目分析气候变化对中国劳动生产力的影响，研究通过调整工作时间（根据各省日出时间调整作息）能否缓解生产力损失。
 
-         -- ssp126
+### 研究流程
 
-             --  r1i1p1f1
+1. 从NASA NEX-GDDP-CMIP6数据集下载全球气候模型(GCM)数据
+2. 计算室内和室外湿球黑球温度(WBGT)
+3. 结合人口数据估算劳动生产力损失
+4. 分析调整工作时间前后的差异
 
-                  --  hurs
+### 气候模型和情景
 
-                  --  rsds
+- **4个CMIP6模型**: EC-Earth3, GFDL-ESM4, IPSL-CM6A-LR, NorESM2-MM
+- **3个SSP情景**: SSP1-2.6 (低排放), SSP2-4.5 (中等), SSP5-8.5 (高排放)
+- **5个气候变量**: 相对湿度、太阳辐射、气温、最高气温、风速
+- **时间范围**: 2015-2100年，日分辨率
+- **空间分辨率**: 0.25度（约25km）
 
-                  --  sfcWind
+## 安装
 
-                  --  tas
+### 环境要求
 
-                  --  tasmax
+- Python >= 3.9
+- NVIDIA GPU with CUDA support (用于CuPy加速)
+- Conda (推荐)
 
-         -- ssp245
+### 安装步骤
 
-           ...
+```bash
+# 克隆仓库
+git clone https://github.com/yourusername/shifting_work_hours.git
+cd shifting_work_hours
 
-     --GFDL-ESM4
+# 创建conda环境
+conda create -n shifting-wh python=3.11
+conda activate shifting-wh
 
-          ...
+# 安装依赖
+pip install -e .
 
-     --IPSL-CM6A-LR
+# 或者使用requirements.txt
+pip install -r requirements.txt
+```
 
-     -- NorESM2-MM
-4. 裁切数据。根据需要裁切上述下载到的气候数据。本例中是中国中国经纬度包含的矩形面积的数据。china_bounds_file.json是经纬度信息。extract.py是裁切代码。正常情况，裁切速度受到硬盘IO速度和CPU线程数影响，调节代码中works=8，batchsize=2，对于本人机器速度最快。可以写代码测试12个文件，可知最优数。如果换成固态硬盘，可能硬盘IO不是关键因素，CPU线程数影响速度。尽量用固态速度会快很多。裁切数据可以单独设置位置。如果剪切出错，一般都是下载的文件出错了，重新下载这些出错文件，重新运行extract.py，它会自动剪切那些出错的文件，前提是不删除extract.py生成的记录文件processing_status.json。裁切输出到china_output。数据来源为步骤2下载的位置downloaded_data。
-5. 计算室内wbgt。直接运行wbgt_indoor_cuda.py即可。运行完成后会出现wbgt_indoor_processing_status.json记录处理进度，如果中断，根据记录恢复，而不必重新算已经算过的，只计算出错和为计算过的。cuda加速效果不明显，估计快几分钟而已。运算数据保存到wbgt_indoor_output文件夹。输入文件为步骤4的输出，即china_output。
-6. 计算室外wbgt。直接运行wbgt_outdoor_modified_c.py，它会调用liljegren_cuda_vectorized_c.py。liljegren_cuda_vectorized_c.py文件中计算室外wbgt的方法采用的是https://github.com/mdljts/wbgt/blob/master/src/wbgt.c。   
-R语言计算包计算的温度不收敛，所以没采纳。输入文件为步骤4的输出，即china_output。代码计算结果输出为wbgt_outdoor_output。强调的是，代码必须用cuda加速，否则计算非常非常消耗时间。
-7. 计算网格中不同强度人口强度下，劳动生产率损失。实际上就是3种人口强度下，计算了劳动生产率损失，然后乘以人口，得到网格中的劳动生产率损失。需要建立一个文件夹model_outputs，将室内和室外wbgt计算结果wbgt_outdoor_output和wbgt_indoor_output文件夹以及其中文件移动到model_outputs文件夹中。同时找到索要计算区域的人口的nc数据。先将人口数据的坐标与之前计算得到的wbgt数据求交集，然后求积，输出到eighted_productivity_loss_outpu文件夹中。Labor_Productivity_Loss_pop_mini_cuda.py也通过cuda加速。
-8. 计算不同劳动强度，所有模型中，不同情景的平均、最大、最小人均劳动力损失。运行labor-productivity-analysis-logical-review.py即可。先用中国地图的geojson数据以及中国分省份geojson数据mask步骤7得到的数据，得到中国以及各省份数据加总，除以人口中国加总和分省份加总。得到人均损失。再计算所有模型，不同情景的平均、最大和最小损失。这里还有个步骤就是考虑了工作时间调解前后这些数据，以及差值。结果保存到labor_productivity_results文件夹中，以csv格式保存。geojson数据阿里云数据可视化平台获取https://datav.aliyun.com/portal/school/atlas/area_selector#&lat=33.54139466898275&lng=104.2822265625&zoom=4
-9. 添加室外wbgt的一个计算，文件时outdoor-wbgt-processing.py。计算2100年，中国6-8月份的所有模型下的平均wbgt温度。
+### 可选依赖
+
+```bash
+# 安装开发依赖（测试、代码格式化）
+pip install -e ".[dev]"
+
+# 安装Scrapy依赖（用于Stage 1: 爬取NASA数据目录）
+pip install -e ".[scrapy]"
+```
+
+## 使用方法
+
+### 新版CLI（推荐）
+
+```bash
+# 查看所有命令
+python scripts/run_pipeline.py --help
+
+# Stage 2: 下载气候数据
+python scripts/run_pipeline.py download --workers 5
+
+# Stage 3: 裁切数据到中国区域
+python scripts/run_pipeline.py extract --threads 8
+
+# Stage 4: 计算室内WBGT
+python scripts/run_pipeline.py wbgt-indoor --threads 4
+
+# Stage 5: 计算室外WBGT
+python scripts/run_pipeline.py wbgt-outdoor --threads 1
+
+# Stage 6: 计算生产力损失
+python scripts/run_pipeline.py productivity --scenario SSP245 --threads 4
+
+# Stage 7: 最终分析
+python scripts/run_pipeline.py analysis
+
+# Stage 8: 室外WBGT汇总
+python scripts/run_pipeline.py outdoor-summary
+
+# 运行所有阶段
+python scripts/run_pipeline.py all --threads 4
+```
+
+### 环境变量
+
+可以通过环境变量自定义配置：
+
+```bash
+# 设置数据目录
+export SHIFTING_WH_DATA_DIR=/path/to/data
+
+# 设置线程数
+export SHIFTING_WH_NUM_THREADS=8
+
+# 设置下载工作线程数
+export SHIFTING_WH_DOWNLOAD_WORKERS=5
+
+# 设置日志级别
+export SHIFTING_WH_LOG_LEVEL=DEBUG
+```
+
+### 旧版脚本（已废弃）
+
+旧版脚本位于 `legacy/` 目录，运行时会显示废弃警告：
+
+```bash
+# 旧版脚本（不推荐使用）
+python legacy/wbgt_indoor_cuda.py
+python legacy/wbgt_outdoor_modified_c.py
+# ... 等等
+```
+
+## 项目结构
+
+```
+shifting_work_hours/
+├── config/                          # 配置模块
+│   ├── __init__.py
+│   ├── constants.py                 # 领域常量（模型、情景等）
+│   └── settings.py                  # 路径和设置配置
+├── src/shifting_work_hours/         # 主代码包
+│   ├── core/                        # 核心工具
+│   │   ├── status.py                # StatusTracker - 状态跟踪
+│   │   ├── runner.py                # TaskRunner - 并行任务执行
+│   │   └── io.py                    # NetCDF I/O 工具
+│   ├── pipeline/                    # 处理流水线
+│   │   ├── downloader.py            # Stage 2: 数据下载
+│   │   ├── extractor.py             # Stage 3: 空间裁切
+│   │   ├── wbgt_indoor.py           # Stage 4: 室内WBGT
+│   │   ├── wbgt_outdoor.py          # Stage 5: 室外WBGT
+│   │   ├── productivity.py          # Stage 6: 生产力损失
+│   │   ├── analysis.py              # Stage 7: 最终分析
+│   │   └── outdoor_summary.py       # Stage 8: 室外WBGT汇总
+│   └── utils/                       # 工具函数
+│       └── file_discovery.py        # 文件发现工具
+├── scripts/                         # 脚本
+│   └── run_pipeline.py              # CLI入口点
+├── tests/                           # 测试
+│   └── test_status_tracker.py       # StatusTracker测试
+├── legacy/                          # 旧版脚本（已废弃）
+├── nasa_climate_data/               # Scrapy爬虫项目（Stage 1）
+├── pyproject.toml                   # 项目配置和依赖
+├── requirements.txt                 # 依赖列表
+└── README.md                        # 本文件
+```
+
+## 处理流水线
+
+### Stage 1: 爬取NASA数据目录
+
+使用Scrapy爬虫从NASA THREDDS目录获取可用数据文件列表：
+
+```bash
+cd nasa_climate_data
+scrapy crawl nasa_climate_data_xml
+```
+
+输出: `nasa_climate_data_info.csv`
+
+### Stage 2: 下载气候数据
+
+多线程下载器，支持断点续传：
+
+```bash
+python scripts/run_pipeline.py download --workers 5
+```
+
+输出: `data/downloaded_data/{model}/{scenario}/r1i1p1f1/{variable}/*.nc`
+
+### Stage 3: 裁切数据
+
+将全球数据裁切到中国区域：
+
+```bash
+python scripts/run_pipeline.py extract --threads 8
+```
+
+输出: `data/china_output/`
+
+### Stage 4: 计算室内WBGT
+
+使用Stull (2011)公式计算湿球温度：
+
+```bash
+python scripts/run_pipeline.py wbgt-indoor --threads 4
+```
+
+输出: `data/wbgt_indoor_output/`
+
+### Stage 5: 计算室外WBGT
+
+使用Liljegren模型计算室外WBGT（需要CUDA加速）：
+
+```bash
+python scripts/run_pipeline.py wbgt-outdoor --threads 1
+```
+
+输出: `data/wbgt_outdoor_output/`
+
+### Stage 6: 计算生产力损失
+
+结合人口数据计算加权生产力损失：
+
+```bash
+python scripts/run_pipeline.py productivity --scenario SSP245 --threads 4
+```
+
+输出: `data/weighted_productivity_loss_output/`
+
+### Stage 7: 最终分析
+
+地理聚合和统计分析：
+
+```bash
+python scripts/run_pipeline.py analysis
+```
+
+输出: `data/labor_productivity_results/{scenario}/`
+
+### Stage 8: 室外WBGT汇总
+
+计算2100年夏季平均室外WBGT：
+
+```bash
+python scripts/run_pipeline.py outdoor-summary
+```
+
+输出: `data/outdoor_wbgt_output/`
+
+## 开发
+
+### 运行测试
+
+```bash
+# 运行所有测试
+pytest tests/
+
+# 运行特定测试
+pytest tests/test_status_tracker.py -v
+```
+
+### 代码格式化
+
+```bash
+# 使用black格式化
+black src/ scripts/ tests/
+
+# 使用ruff检查
+ruff check src/ scripts/ tests/
+```
+
+## 参考文献
+
+- Stull, R. (2011). Wet-bulb temperature from relative humidity and air temperature. *Journal of Applied Meteorology and Climatology*, 50(11), 2267-2269.
+- Kjellstrom, T., et al. (2018). Heat and human performance. *Annual Review of Public Health*, 39, 97-115.
+- Liljegren, J. C., et al. (2008). Modeling the wet bulb globe temperature using standard meteorological measurements. *Journal of Occupational and Environmental Hygiene*, 5(10), 645-655.
+
+## 许可证
+
+MIT License
