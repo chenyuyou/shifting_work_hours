@@ -160,12 +160,22 @@ pytest tests/test_status_tracker.py -v
 3. Follow the pattern in existing pipeline stages
 4. Add tests for new functionality
 
+## Test Coverage
+
+Total: **30 tests passing**
+
+- `test_status_tracker.py` - 6 tests
+- `test_task_runner.py` - 5 tests
+- `test_file_discovery.py` - 9 tests
+- `test_io.py` - 5 tests
+- `test_cli.py` - 5 tests
+
 ## Next Steps
 
 1. **Merge to main branch** after review
-2. **Add more tests** for pipeline stages
+2. **Test with real data** using the new CLI
 3. **Add CI/CD** configuration
-4. **Update documentation** with examples
+4. **Add more integration tests** for pipeline stages
 
 ## Files Changed
 
