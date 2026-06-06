@@ -343,9 +343,9 @@ def run(input_dir: Path, output_dir: Path,
     """
     # Default GeoJSON paths
     if china_geojson is None:
-        china_geojson = Path('./model_outputs/中华人民共和国.json')
+        china_geojson = Path('./model_outputs/china_full.json')
     if province_geojson is None:
-        province_geojson = Path('./model_outputs/中华人民共和国-分省.json')
+        province_geojson = Path('./model_outputs/china_provinces.json')
 
     # Get all NetCDF files
     nc_files = list(input_dir.glob('weighted_productivity_loss_*.nc'))

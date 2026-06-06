@@ -37,8 +37,8 @@ POPULATION_FILES = {
 }
 
 # GeoJSON boundary files
-CHINA_GEOJSON_URL = 'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json'
-PROVINCE_GEOJSON_URL = 'https://geo.datav.aliyun.com/areas_v3/bound/{code}_full.json'
+CHINA_GEOJSON_URL = 'https://geo.datav.aliyun.com/areas_v3/bound/100000.json'
+PROVINCE_GEOJSON_URL = 'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json'
 
 # Processing settings
 NUM_THREADS = int(os.getenv('SHIFTING_WH_NUM_THREADS', '4'))
