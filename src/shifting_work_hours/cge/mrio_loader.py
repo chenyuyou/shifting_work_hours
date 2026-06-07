@@ -47,6 +47,25 @@ AGG_MAP_8 = {
     **{i: 'TRA' for i in range(26, 29)},
     **{i: 'SER' for i in range(29, 42)},
 }
+
+# ── 10-sector aggregation (CHEER model, Lancet 2025) ──
+# Paper: "China provincial dynamic CGE model with 10 economic sectors"
+# Mapping from CEADs 42 sectors → CHEER 10 sectors
+AGG_MAP_10 = {
+    0: 'AGR',    # Agriculture, Forestry, Animal Husbandry and Fishery
+    1: 'COA',    # Mining and washing of coal
+    2: 'OIG',    # Extraction of petroleum and natural gas
+    3: 'MIN',    # Mining and processing of metal ores
+    4: 'MIN',    # Mining and processing of nonmetal ores
+    10: 'PET',   # Processing of petroleum, coking and nuclear fuel
+    **{i: 'OMF' for i in [5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]},  # Other manufacturing
+    22: 'ELC',   # Production and supply of electric power and heat power
+    23: 'GAS',   # Production and distribution of gas
+    24: 'SER',   # Production and distribution of water → service
+    25: 'CON',   # Construction
+    **{i: 'SER' for i in range(26, 42)},  # All services
+}
+AGG_NAMES_10 = ['AGR', 'COA', 'OIG', 'MIN', 'PET', 'OMF', 'ELC', 'GAS', 'CON', 'SER']
 AGG_NAMES_8 = ['AGR', 'MIN', 'MFG', 'ENE', 'CON', 'TRA', 'SER']
 
 

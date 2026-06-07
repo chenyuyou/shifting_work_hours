@@ -95,8 +95,9 @@ def calibrate(sam: SAM, elasticities: Elasticities | None = None) -> CalibratedP
     params = CalibratedParams(sam=sam, elasticities=elasticities)
     idx = {a: sam.index(a) for a in sam.accounts}
 
-    # ── Sector accounts ──
-    sectors = [a for a in sam.accounts if a in ('AGR', 'IND')]
+    # ── Sector accounts (all accounts except factor/institution accounts) ──
+    non_sectors = {'LAB', 'CAP', 'HOU', 'GOV', 'INV', 'ROW'}
+    sectors = [a for a in sam.accounts if a not in non_sectors]
 
     for s in sectors:
         j = idx[s]
